@@ -1,0 +1,1064 @@
+openapi: 3.0.3
+info:
+  title: Warehouse Inventory ERP API
+  description: REST API for multi-tenant warehouse inventory management system
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@warehouse-erp.com
+
+servers:
+  - url: http://localhost:3001/api
+    description: Development server
+  - url: https://api.warehouse-erp.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Warehouses
+    description: Warehouse CRUD operations
+  - name: Items
+    description: Item master data management
+  - name: Inventory
+    description: Warehouse-item inventory management
+  - name: Transactions
+    description: Inbound/outbound transaction tracking
+  - name: Dashboard
+    description: Dashboard aggregations and statistics
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login
+
+  schemas:
+    # Authentication Schemas
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@demo.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: password123
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (15min expiry)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: New JWT access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    # Core Entity Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: admin@demo.com
+        name:
+          type: string
+          example: Admin User
+        role:
+          type: string
+          enum: [ADMIN, MANAGER, USER]
+          example: ADMIN
+        companyId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
+          example: true
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Warehouse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Main Warehouse
+        location:
+          type: string
+          example: Seoul, South Korea
+        capacity:
+          type: number
+          format: double
+          example: 1000.50
+        companyId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        # Computed fields
+        currentUtilization:
+          type: number
+          format: double
+          example: 65.5
+          description: Percentage of capacity used
+        itemCount:
+          type: integer
+          example: 25
+          description: Number of distinct items in warehouse
+
+    CreateWarehouseRequest:
+      type: object
+      required: [name, location, capacity]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Main Warehouse
+        location:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: Seoul, South Korea
+        capacity:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 1000.00
+
+    UpdateWarehouseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        location:
+          type: string
+          minLength: 2
+          maxLength: 200
+        capacity:
+          type: number
+          format: double
+          minimum: 0.01
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          example: ITEM-001
+        name:
+          type: string
+          example: Widget A
+        category:
+          type: string
+          nullable: true
+          example: Parts
+        unitOfMeasure:
+          type: string
+          example: EA
+        description:
+          type: string
+          nullable: true
+        reorderThreshold:
+          type: integer
+          nullable: true
+          example: 100
+        companyId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        # Computed fields
+        totalQuantity:
+          type: number
+          format: double
+          example: 500.00
+          description: Sum of quantities across all warehouses
+        warehouseCount:
+          type: integer
+          example: 3
+          description: Number of warehouses storing this item
+        lowStockWarning:
+          type: boolean
+          example: false
+          description: True if totalQuantity <= reorderThreshold
+
+    CreateItemRequest:
+      type: object
+      required: [sku, name, unitOfMeasure]
+      properties:
+        sku:
+          type: string
+          minLength: 2
+          maxLength: 50
+          pattern: '^[A-Z0-9-]+$'
+          example: ITEM-001
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: Widget A
+        category:
+          type: string
+          minLength: 2
+          maxLength: 50
+        unitOfMeasure:
+          type: string
+          example: EA
+        description:
+          type: string
+          maxLength: 1000
+        reorderThreshold:
+          type: integer
+          minimum: 0
+
+    UpdateItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+        category:
+          type: string
+          minLength: 2
+          maxLength: 50
+        unitOfMeasure:
+          type: string
+        description:
+          type: string
+          maxLength: 1000
+        reorderThreshold:
+          type: integer
+          minimum: 0
+
+    Inventory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: double
+          example: 250.50
+        lastRestockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+        # Nested objects
+        warehouse:
+          $ref: '#/components/schemas/Warehouse'
+        item:
+          $ref: '#/components/schemas/Item'
+
+    CreateInventoryRequest:
+      type: object
+      required: [warehouseId, itemId, quantity]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 100.00
+
+    UpdateInventoryRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: number
+          format: double
+          minimum: 0
+          example: 150.00
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND]
+          example: INBOUND
+        warehouseId:
+          type: string
+          format: uuid
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: double
+          example: 50.00
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        # Nested objects
+        warehouse:
+          $ref: '#/components/schemas/Warehouse'
+        item:
+          $ref: '#/components/schemas/Item'
+        user:
+          $ref: '#/components/schemas/User'
+
+    CreateTransactionRequest:
+      type: object
+      required: [type, warehouseId, itemId, quantity]
+      properties:
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND]
+          example: INBOUND
+        warehouseId:
+          type: string
+          format: uuid
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 50.00
+        notes:
+          type: string
+          maxLength: 1000
+
+    DashboardStats:
+      type: object
+      properties:
+        totalWarehouses:
+          type: integer
+          example: 5
+        totalItems:
+          type: integer
+          example: 150
+        lowStockItems:
+          type: integer
+          example: 8
+        totalInventoryValue:
+          type: number
+          format: double
+          example: 125000.00
+        warehouseUtilization:
+          type: object
+          properties:
+            average:
+              type: number
+              format: double
+              example: 67.5
+            warehouses:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  utilization:
+                    type: number
+                    format: double
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 100
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            totalPages:
+              type: integer
+              example: 5
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Validation failed
+        error:
+          type: string
+          example: Bad Request
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: /api/warehouses
+
+paths:
+  # Authentication Endpoints
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user and return access + refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Exchange refresh token for new access token (RTR pattern)
+      parameters:
+        - in: cookie
+          name: refreshToken
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token refreshed
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: New refresh token (rotation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Invalid or expired refresh token
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: Revoke refresh token and clear cookies
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          description: Unauthorized
+
+  # Warehouse Endpoints
+  /warehouses:
+    get:
+      tags: [Warehouses]
+      summary: List warehouses
+      description: Get all warehouses for current user's company with pagination
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name or location
+      responses:
+        '200':
+          description: Warehouse list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warehouse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Warehouses]
+      summary: Create warehouse
+      description: Create new warehouse for current user's company
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseRequest'
+      responses:
+        '201':
+          description: Warehouse created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /warehouses/{id}:
+    get:
+      tags: [Warehouses]
+      summary: Get warehouse details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Warehouse details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Warehouses]
+      summary: Update warehouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarehouseRequest'
+      responses:
+        '200':
+          description: Warehouse updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+
+    delete:
+      tags: [Warehouses]
+      summary: Delete warehouse
+      description: Soft delete warehouse (sets deletedAt timestamp)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Warehouse deleted
+        '409':
+          description: Cannot delete warehouse with inventory
+
+  /warehouses/{id}/inventory:
+    get:
+      tags: [Warehouses]
+      summary: Get warehouse inventory
+      description: Get all items stored in warehouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Warehouse inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Inventory'
+
+  # Item Endpoints
+  /items:
+    get:
+      tags: [Items]
+      summary: List items
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Item'
+
+    post:
+      tags: [Items]
+      summary: Create item
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '201':
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '409':
+          description: Duplicate SKU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /items/{id}:
+    get:
+      tags: [Items]
+      summary: Get item details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+
+    patch:
+      tags: [Items]
+      summary: Update item
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemRequest'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+
+    delete:
+      tags: [Items]
+      summary: Delete item
+      description: Soft delete item
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Item deleted
+
+  # Inventory Endpoints
+  /inventory:
+    post:
+      tags: [Inventory]
+      summary: Create inventory record
+      description: Assign item to warehouse with initial quantity
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryRequest'
+      responses:
+        '201':
+          description: Inventory created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inventory'
+        '409':
+          description: Item already assigned to warehouse
+
+  /inventory/{id}:
+    patch:
+      tags: [Inventory]
+      summary: Update inventory quantity
+      description: Manually adjust inventory quantity (creates audit transaction)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInventoryRequest'
+      responses:
+        '200':
+          description: Inventory updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inventory'
+
+  # Transaction Endpoints
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions
+      description: Get transaction history with filtering
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [INBOUND, OUTBOUND]
+        - name: warehouseId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: itemId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Transaction'
+
+    post:
+      tags: [Transactions]
+      summary: Create transaction
+      description: Record inbound or outbound inventory movement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Insufficient inventory for outbound transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+
+  # Dashboard Endpoints
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard statistics
+      description: Aggregate data for dashboard overview
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+
+  /dashboard/recent-transactions:
+    get:
+      tags: [Dashboard]
+      summary: Get recent transactions
+      description: Get most recent transactions for dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Recent transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+
+components:
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 401
+            message: Unauthorized
+            error: Unauthorized
+            timestamp: '2025-10-17T12:00:00Z'
+            path: /api/warehouses
+
+    BadRequest:
+      description: Bad Request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            message: Validation failed
+            error: Bad Request
+            timestamp: '2025-10-17T12:00:00Z'
+            path: /api/warehouses
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Warehouse not found
+            error: Not Found
+            timestamp: '2025-10-17T12:00:00Z'
+            path: /api/warehouses/123

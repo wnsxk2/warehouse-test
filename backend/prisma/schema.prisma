@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  phone        String?
+  address      String?
+  maxUsers     Int           @default(50)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  users        User[]
+  warehouses   Warehouse[]
+  items        Item[]
+  transactions Transaction[]
+
+  @@map("companies")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          Role           @default(USER)
+  companyId     String?
+  isActive      Boolean        @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  company       Company?       @relation(fields: [companyId], references: [id])
+  transactions  Transaction[]
+  refreshTokens RefreshToken[]
+
+  @@index([companyId])
+  @@index([companyId, role])
+  @@map("users")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  USER
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, expiresAt, isRevoked])
+  @@map("refresh_tokens")
+}
+
+model Warehouse {
+  id          String      @id @default(uuid())
+  name        String
+  location    String
+  capacity    Decimal     @db.Decimal(10, 2)
+  companyId   String
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  inventory    Inventory[]
+  transactions Transaction[]
+
+  @@index([companyId])
+  @@index([companyId, deletedAt])
+  @@map("warehouses")
+}
+
+model Item {
+  id               String      @id @default(uuid())
+  sku              String      @unique
+  name             String
+  category         String?
+  unitOfMeasure    String
+  description      String?     @db.Text
+  reorderThreshold Int?
+  companyId        String
+  deletedAt        DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  inventory    Inventory[]
+  transactions Transaction[]
+
+  @@index([companyId])
+  @@index([companyId, category])
+  @@index([companyId, deletedAt])
+  @@map("items")
+}
+
+model Inventory {
+  id              String    @id @default(uuid())
+  warehouseId     String
+  itemId          String
+  quantity        Decimal   @db.Decimal(10, 2)
+  lastRestockedAt DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@unique([warehouseId, itemId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@map("inventory")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  type        TransactionType
+  warehouseId String
+  itemId      String
+  quantity    Decimal         @db.Decimal(10, 2)
+  notes       String?         @db.Text
+  createdBy   String
+  companyId   String
+  createdAt   DateTime        @default(now())
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+  user      User      @relation(fields: [createdBy], references: [id])
+  company   Company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, type])
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([warehouseId, createdAt(sort: Desc)])
+  @@index([itemId, createdAt(sort: Desc)])
+  @@map("transactions")
+}
+
+enum TransactionType {
+  INBOUND
+  OUTBOUND
+}
