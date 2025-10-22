@@ -116,14 +116,34 @@ export class NotificationsService {
     }
 
     // Get notifications for the user or all users in the company
-    return this.prisma.notification.findMany({
+    const notifications = await this.prisma.notification.findMany({
       where: {
         companyId: user.companyId,
         OR: [{ userId: userId }, { userId: null }],
       },
+      include: {
+        notificationRead: {
+          where: { userId: userId },
+          select: { id: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+
+    // Transform to include isRead based on NotificationRead
+    return notifications.map((notification) => ({
+      id: notification.id,
+      companyId: notification.companyId,
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      relatedId: notification.relatedId,
+      isRead: notification.notificationRead.length > 0,
+      createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
+    }));
   }
 
   /**
@@ -139,11 +159,16 @@ export class NotificationsService {
       return 0;
     }
 
+    // Count notifications that don't have a NotificationRead record for this user
     return this.prisma.notification.count({
       where: {
         companyId: user.companyId,
         OR: [{ userId: userId }, { userId: null }],
-        isRead: false,
+        notificationRead: {
+          none: {
+            userId: userId,
+          },
+        },
       },
     });
   }
@@ -169,10 +194,22 @@ export class NotificationsService {
       throw new Error('Notification not found or access denied');
     }
 
-    return this.prisma.notification.update({
-      where: { id: notificationId },
-      data: { isRead: true },
+    // Create NotificationRead record (upsert to handle duplicate calls)
+    await this.prisma.notificationRead.upsert({
+      where: {
+        notificationId_userId: {
+          notificationId,
+          userId,
+        },
+      },
+      create: {
+        notificationId,
+        userId,
+      },
+      update: {}, // Do nothing if already exists
     });
+
+    return notification;
   }
 
   /**
@@ -188,14 +225,32 @@ export class NotificationsService {
       throw new Error('User not found or not assigned to a company');
     }
 
-    return this.prisma.notification.updateMany({
+    // Get all unread notifications for this user
+    const unreadNotifications = await this.prisma.notification.findMany({
       where: {
         companyId: user.companyId,
         OR: [{ userId: userId }, { userId: null }],
-        isRead: false,
+        notificationRead: {
+          none: {
+            userId: userId,
+          },
+        },
       },
-      data: { isRead: true },
+      select: { id: true },
     });
+
+    // Create NotificationRead records for all unread notifications
+    if (unreadNotifications.length > 0) {
+      await this.prisma.notificationRead.createMany({
+        data: unreadNotifications.map((notification) => ({
+          notificationId: notification.id,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return { count: unreadNotifications.length };
   }
 
   /**
