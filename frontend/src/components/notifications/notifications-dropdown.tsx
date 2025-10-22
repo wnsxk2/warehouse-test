@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Bell, Check, CheckCheck } from 'lucide-react';
@@ -23,6 +24,7 @@ export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -105,9 +107,51 @@ export function NotificationsDropdown() {
     },
   });
 
+  const getNotificationLink = (notification: Notification): string | null => {
+    const { type, relatedId } = notification;
+
+    if (!relatedId) {
+      // If no relatedId, go to the default list page for that type
+      switch (type) {
+        case 'WAREHOUSE_CREATED':
+        case 'WAREHOUSE_DELETED':
+          return '/warehouses';
+        case 'ITEM_CREATED':
+        case 'ITEM_DELETED':
+          return '/items';
+        case 'TRANSACTION_CREATED':
+          return '/transactions';
+        default:
+          return null;
+      }
+    }
+
+    // If relatedId exists, go to the specific page
+    switch (type) {
+      case 'WAREHOUSE_CREATED':
+      case 'WAREHOUSE_DELETED':
+        return `/warehouses/${relatedId}`;
+      case 'ITEM_CREATED':
+      case 'ITEM_DELETED':
+        return '/items'; // Items don't have detail pages, go to list
+      case 'TRANSACTION_CREATED':
+        return '/transactions'; // Transactions don't have detail pages, go to list
+      default:
+        return null;
+    }
+  };
+
   const handleNotificationClick = (notification: Notification) => {
+    // Mark as read if unread
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
+    }
+
+    // Navigate to related page
+    const link = getNotificationLink(notification);
+    if (link) {
+      setOpen(false); // Close dropdown
+      router.push(link);
     }
   };
 
