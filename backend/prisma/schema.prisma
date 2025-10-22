@@ -24,6 +24,7 @@ model Company {
   warehouses   Warehouse[]
   items        Item[]
   transactions Transaction[]
+  inviteCodes  InviteCode[]
 
   @@map("companies")
 }
@@ -43,6 +44,7 @@ model User {
   company       Company?       @relation(fields: [companyId], references: [id])
   transactions  Transaction[]
   refreshTokens RefreshToken[]
+  inviteCodes   InviteCode[]
 
   @@index([companyId])
   @@index([companyId, role])
@@ -157,4 +159,25 @@ model Transaction {
 enum TransactionType {
   INBOUND
   OUTBOUND
+}
+
+model InviteCode {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  companyId    String
+  createdBy    String
+  expiresAt    DateTime
+  maxUses      Int       @default(1)
+  usedCount    Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  creator User    @relation(fields: [createdBy], references: [id])
+
+  @@index([companyId])
+  @@index([code, isActive])
+  @@index([companyId, isActive])
+  @@map("invite_codes")
 }

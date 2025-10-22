@@ -43,6 +43,9 @@ function LoginForm() {
         const user = JSON.parse(userStr);
         if (user.role === 'SUPER_ADMIN') {
           router.push('/admin/companies');
+        } else if (!user.companyId) {
+          // User not assigned to any company - redirect to setup
+          router.push('/setup-company');
         } else {
           router.push('/dashboard');
         }

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Warehouse, Package, History, Settings } from 'lucide-react';
+import { Home, Warehouse, Package, History, Settings, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -13,15 +14,26 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
+// Admin-only navigation items
+const adminNavigation = [
+  { name: 'Management', href: '/management', icon: Users },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Combine navigation items based on user role
+  const allNavigation = user?.role === 'ADMIN'
+    ? [...navigation, ...adminNavigation]
+    : navigation;
 
   return (
     <div className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">
         <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto bg-gray-50 border-r border-gray-200">
           <nav className="mt-5 flex-1 px-2 space-y-1">
-            {navigation.map((item) => {
+            {allNavigation.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -17,6 +18,7 @@ import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { AssignCompanyDto } from './dto/assign-company.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../common/guards/super-admin.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { GetUser } from '../common/decorators/get-user.decorator';
 
 @Controller('users')
@@ -51,7 +53,24 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-  // Admin-only endpoints
+  // Company admin endpoints - manage their own company users
+  @Patch('company-admin/:id/role')
+  @UseGuards(AdminGuard)
+  updateUserRoleByCompanyAdmin(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateUserRoleDto: UpdateUserRoleDto,
+  ) {
+    return this.usersService.updateUserRoleByAdmin(req.user.id, id, updateUserRoleDto.role);
+  }
+
+  @Delete('company-admin/:id')
+  @UseGuards(AdminGuard)
+  removeUserFromCompanyByAdmin(@Request() req: any, @Param('id') id: string) {
+    return this.usersService.removeUserFromCompanyByAdmin(req.user.id, id);
+  }
+
+  // Super admin endpoints
   @Get('admin/unassigned')
   @UseGuards(SuperAdminGuard)
   getUnassignedUsers() {

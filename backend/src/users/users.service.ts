@@ -364,4 +364,119 @@ export class UsersService {
       },
     });
   }
+
+  // Company admin methods - manage their own company users
+  async updateUserRoleByAdmin(adminUserId: string, targetUserId: string, role: string) {
+    // Get admin's company
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+      select: { companyId: true, role: true },
+    });
+
+    if (!admin || !admin.companyId) {
+      throw new NotFoundException('Admin is not assigned to any company');
+    }
+
+    if (admin.role !== 'ADMIN') {
+      throw new BadRequestException('Only company admins can change user roles');
+    }
+
+    // Get target user
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${targetUserId} not found`);
+    }
+
+    // Prevent changing SUPER_ADMIN role
+    if (targetUser.role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN') {
+      throw new BadRequestException('Cannot modify SUPER_ADMIN role');
+    }
+
+    // Check if target user belongs to admin's company
+    if (targetUser.companyId !== admin.companyId) {
+      throw new BadRequestException('User does not belong to your company');
+    }
+
+    // Validate role is USER or ADMIN
+    if (role !== 'USER' && role !== 'ADMIN') {
+      throw new BadRequestException('Role must be USER or ADMIN');
+    }
+
+    return this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { role: role as any },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        companyId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async removeUserFromCompanyByAdmin(adminUserId: string, targetUserId: string) {
+    // Get admin's company
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+      select: { companyId: true, role: true },
+    });
+
+    if (!admin || !admin.companyId) {
+      throw new NotFoundException('Admin is not assigned to any company');
+    }
+
+    if (admin.role !== 'ADMIN') {
+      throw new BadRequestException('Only company admins can remove users');
+    }
+
+    // Get target user
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${targetUserId} not found`);
+    }
+
+    // Prevent removing SUPER_ADMIN
+    if (targetUser.role === 'SUPER_ADMIN') {
+      throw new BadRequestException('Cannot modify SUPER_ADMIN user');
+    }
+
+    // Check if target user belongs to admin's company
+    if (targetUser.companyId !== admin.companyId) {
+      throw new BadRequestException('User does not belong to your company');
+    }
+
+    // Check if user is trying to remove themselves
+    if (targetUserId === adminUserId) {
+      throw new BadRequestException('Cannot remove yourself from the company');
+    }
+
+    // Remove user from company (soft removal - just unassign)
+    return this.prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        companyId: null,
+        role: 'USER', // Reset role to USER when removing from company
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        companyId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
 }
