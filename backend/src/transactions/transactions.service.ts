@@ -14,127 +14,129 @@ export class TransactionsService {
     const { type, warehouseId, itemId, quantity, notes } = createTransactionDto;
 
     // Use database transaction to ensure atomicity
-    return this.prisma.$transaction(async (tx) => {
-      // Verify warehouse exists and belongs to company
-      const warehouse = await tx.warehouse.findFirst({
-        where: { id: warehouseId, companyId, deletedAt: null },
-      });
+    return this.prisma
+      .$transaction(async (tx) => {
+        // Verify warehouse exists and belongs to company
+        const warehouse = await tx.warehouse.findFirst({
+          where: { id: warehouseId, companyId, deletedAt: null },
+        });
 
-      if (!warehouse) {
-        throw new NotFoundException('Warehouse not found');
-      }
-
-      // Verify item exists and belongs to company
-      const item = await tx.item.findFirst({
-        where: { id: itemId, companyId, deletedAt: null },
-      });
-
-      if (!item) {
-        throw new NotFoundException('Item not found');
-      }
-
-      // Find or create inventory record
-      let inventory = await tx.inventory.findFirst({
-        where: { warehouseId, itemId },
-      });
-
-      if (!inventory) {
-        // Create new inventory record for INBOUND transactions
-        if (type === 'OUTBOUND') {
-          throw new BadRequestException(
-            'Cannot create OUTBOUND transaction for non-existent inventory',
-          );
+        if (!warehouse) {
+          throw new NotFoundException('Warehouse not found');
         }
 
-        inventory = await tx.inventory.create({
+        // Verify item exists and belongs to company
+        const item = await tx.item.findFirst({
+          where: { id: itemId, companyId, deletedAt: null },
+        });
+
+        if (!item) {
+          throw new NotFoundException('Item not found');
+        }
+
+        // Find or create inventory record
+        let inventory = await tx.inventory.findFirst({
+          where: { warehouseId, itemId },
+        });
+
+        if (!inventory) {
+          // Create new inventory record for INBOUND transactions
+          if (type === 'OUTBOUND') {
+            throw new BadRequestException(
+              'Cannot create OUTBOUND transaction for non-existent inventory',
+            );
+          }
+
+          inventory = await tx.inventory.create({
+            data: {
+              warehouseId,
+              itemId,
+              quantity: 0,
+              lastRestockedAt: new Date(),
+            },
+          });
+        }
+
+        const currentQuantity = Number(inventory.quantity);
+        let newQuantity: number;
+
+        if (type === 'INBOUND') {
+          // Add to inventory
+          newQuantity = currentQuantity + quantity;
+
+          // Check warehouse capacity
+          const totalInventoryQuantity = await tx.inventory.aggregate({
+            where: { warehouseId },
+            _sum: { quantity: true },
+          });
+
+          const currentTotalQuantity = Number(totalInventoryQuantity._sum.quantity || 0);
+          const warehouseCapacity = Number(warehouse.capacity);
+          const projectedTotal = currentTotalQuantity - currentQuantity + newQuantity;
+
+          if (projectedTotal > warehouseCapacity) {
+            throw new BadRequestException(
+              `Warehouse capacity exceeded. Available capacity: ${warehouseCapacity - currentTotalQuantity + currentQuantity}, requested: ${quantity}`,
+            );
+          }
+        } else {
+          // OUTBOUND - subtract from inventory
+          newQuantity = currentQuantity - quantity;
+
+          if (newQuantity < 0) {
+            throw new BadRequestException(
+              `Insufficient stock. Available: ${currentQuantity}, requested: ${quantity}`,
+            );
+          }
+        }
+
+        // Update inventory
+        await tx.inventory.update({
+          where: { id: inventory.id },
           data: {
+            quantity: newQuantity,
+            lastRestockedAt: type === 'INBOUND' ? new Date() : inventory.lastRestockedAt,
+          },
+        });
+
+        // Create transaction record
+        const transaction = await tx.transaction.create({
+          data: {
+            type,
             warehouseId,
             itemId,
-            quantity: 0,
-            lastRestockedAt: new Date(),
+            quantity,
+            notes,
+            createdBy: userId,
+            companyId,
           },
-        });
-      }
-
-      const currentQuantity = Number(inventory.quantity);
-      let newQuantity: number;
-
-      if (type === 'INBOUND') {
-        // Add to inventory
-        newQuantity = currentQuantity + quantity;
-
-        // Check warehouse capacity
-        const totalInventoryQuantity = await tx.inventory.aggregate({
-          where: { warehouseId },
-          _sum: { quantity: true },
-        });
-
-        const currentTotalQuantity = Number(totalInventoryQuantity._sum.quantity || 0);
-        const warehouseCapacity = Number(warehouse.capacity);
-        const projectedTotal = currentTotalQuantity - currentQuantity + newQuantity;
-
-        if (projectedTotal > warehouseCapacity) {
-          throw new BadRequestException(
-            `Warehouse capacity exceeded. Available capacity: ${warehouseCapacity - currentTotalQuantity + currentQuantity}, requested: ${quantity}`,
-          );
-        }
-      } else {
-        // OUTBOUND - subtract from inventory
-        newQuantity = currentQuantity - quantity;
-
-        if (newQuantity < 0) {
-          throw new BadRequestException(
-            `Insufficient stock. Available: ${currentQuantity}, requested: ${quantity}`,
-          );
-        }
-      }
-
-      // Update inventory
-      await tx.inventory.update({
-        where: { id: inventory.id },
-        data: {
-          quantity: newQuantity,
-          lastRestockedAt: type === 'INBOUND' ? new Date() : inventory.lastRestockedAt,
-        },
-      });
-
-      // Create transaction record
-      const transaction = await tx.transaction.create({
-        data: {
-          type,
-          warehouseId,
-          itemId,
-          quantity,
-          notes,
-          createdBy: userId,
-          companyId,
-        },
-        include: {
-          warehouse: true,
-          item: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+          include: {
+            warehouse: true,
+            item: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      return transaction;
-    }).then(async (transaction) => {
-      // Create notification after transaction completes
-      const transactionTypeKo = transaction.type === 'INBOUND' ? '반입' : '반출';
-      await this.notificationsService.createForCompany(
-        companyId,
-        'TRANSACTION_CREATED',
-        `${transactionTypeKo} 거래 발생`,
-        `${transaction.warehouse.name}에서 ${transaction.item.name} ${quantity}${transaction.item.unitOfMeasure} ${transactionTypeKo} 처리되었습니다.`,
-        transaction.id,
-      );
-      return transaction;
-    });
+        return transaction;
+      })
+      .then(async (transaction) => {
+        // Create notification after transaction completes
+        const transactionTypeKo = transaction.type === 'INBOUND' ? '반입' : '반출';
+        await this.notificationsService.createForCompany(
+          companyId,
+          'TRANSACTION_CREATED',
+          `${transactionTypeKo} 거래 발생`,
+          `${transaction.warehouse.name}에서 ${transaction.item.name} ${quantity}${transaction.item.unitOfMeasure} ${transactionTypeKo} 처리되었습니다.`,
+          transaction.id,
+        );
+        return transaction;
+      });
   }
 
   async findAll(

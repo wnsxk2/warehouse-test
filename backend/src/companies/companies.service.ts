@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -258,10 +263,7 @@ export class CompaniesService {
     return code;
   }
 
-  async createInviteCode(
-    adminUserId: string,
-    createInviteCodeDto: CreateInviteCodeDto,
-  ) {
+  async createInviteCode(adminUserId: string, createInviteCodeDto: CreateInviteCodeDto) {
     // Get admin's company
     const admin = await this.prisma.user.findUnique({
       where: { id: adminUserId },

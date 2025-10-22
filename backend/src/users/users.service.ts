@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -180,7 +185,9 @@ export class UsersService {
 
     // Check max users limit
     if (company._count.users >= company.maxUsers) {
-      throw new BadRequestException(`Company has reached maximum users limit (${company.maxUsers})`);
+      throw new BadRequestException(
+        `Company has reached maximum users limit (${company.maxUsers})`,
+      );
     }
 
     // Check if email already exists

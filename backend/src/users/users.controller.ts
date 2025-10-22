@@ -85,11 +85,12 @@ export class UsersController {
 
   @Patch('admin/:id/assign-company')
   @UseGuards(SuperAdminGuard)
-  assignUserToCompany(
-    @Param('id') id: string,
-    @Body() assignCompanyDto: AssignCompanyDto,
-  ) {
-    return this.usersService.assignUserToCompany(id, assignCompanyDto.companyId, assignCompanyDto.role);
+  assignUserToCompany(@Param('id') id: string, @Body() assignCompanyDto: AssignCompanyDto) {
+    return this.usersService.assignUserToCompany(
+      id,
+      assignCompanyDto.companyId,
+      assignCompanyDto.role,
+    );
   }
 
   @Patch('admin/:id/role')

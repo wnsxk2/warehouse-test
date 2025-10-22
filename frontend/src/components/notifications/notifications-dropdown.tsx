@@ -7,6 +7,7 @@ import axios from 'axios';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useNotificationsSSE } from '@/hooks/use-notifications-sse';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -26,6 +27,9 @@ export function NotificationsDropdown() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  // Connect to SSE for real-time notifications
+  const { isConnected } = useNotificationsSSE();
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,7 +47,7 @@ export function NotificationsDropdown() {
     };
   }, [open]);
 
-  // Fetch notifications
+  // Fetch notifications (no polling, relies on SSE for updates)
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
@@ -55,10 +59,9 @@ export function NotificationsDropdown() {
       });
       return response.data;
     },
-    refetchInterval: 10000, // Poll every 10 seconds
   });
 
-  // Fetch unread count
+  // Fetch unread count (no polling, relies on SSE for updates)
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ['notifications-unread-count'],
     queryFn: async () => {
@@ -70,7 +73,6 @@ export function NotificationsDropdown() {
       });
       return response.data;
     },
-    refetchInterval: 10000, // Poll every 10 seconds
   });
 
   const unreadCount = unreadData?.count || 0;

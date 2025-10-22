@@ -1,18 +1,78 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { Subject } from 'rxjs';
+
+interface SseClient {
+  userId: string;
+  companyId: string;
+  subject: Subject<MessageEvent>;
+}
 
 @Injectable()
 export class NotificationsService {
+  private sseClients: Map<string, SseClient[]> = new Map();
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Register SSE client
+   */
+  registerSseClient(userId: string, companyId: string): Subject<MessageEvent> {
+    const subject = new Subject<MessageEvent>();
+    const client: SseClient = { userId, companyId, subject };
+
+    const clients = this.sseClients.get(companyId) || [];
+    clients.push(client);
+    this.sseClients.set(companyId, clients);
+
+    return subject;
+  }
+
+  /**
+   * Unregister SSE client
+   */
+  unregisterSseClient(userId: string, companyId: string) {
+    const clients = this.sseClients.get(companyId);
+    if (clients) {
+      const filtered = clients.filter((c) => c.userId !== userId);
+      if (filtered.length > 0) {
+        this.sseClients.set(companyId, filtered);
+      } else {
+        this.sseClients.delete(companyId);
+      }
+    }
+  }
+
+  /**
+   * Broadcast notification to SSE clients
+   */
+  private broadcastToSseClients(companyId: string, notification: any) {
+    const clients = this.sseClients.get(companyId);
+    if (clients) {
+      clients.forEach((client) => {
+        // Send to all users or specific user
+        if (!notification.userId || notification.userId === client.userId) {
+          client.subject.next({
+            data: JSON.stringify(notification),
+          } as MessageEvent);
+        }
+      });
+    }
+  }
 
   /**
    * Create a notification for a company (all users or specific user)
    */
   async create(createNotificationDto: CreateNotificationDto) {
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: createNotificationDto,
     });
+
+    // Broadcast to SSE clients
+    this.broadcastToSseClients(notification.companyId, notification);
+
+    return notification;
   }
 
   /**
@@ -25,7 +85,7 @@ export class NotificationsService {
     message: string,
     relatedId?: string,
   ) {
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         companyId,
         type: type as any,
@@ -35,6 +95,11 @@ export class NotificationsService {
         userId: null, // null means all users in company
       },
     });
+
+    // Broadcast to SSE clients
+    this.broadcastToSseClients(companyId, notification);
+
+    return notification;
   }
 
   /**
