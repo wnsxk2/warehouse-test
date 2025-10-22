@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { LogOut, User } from 'lucide-react';
+import { NotificationsDropdown } from '@/components/notifications/notifications-dropdown';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -24,6 +25,8 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <NotificationsDropdown />
+
             <div className="flex items-center space-x-2 text-sm text-gray-700">
               <User className="h-5 w-5" />
               <div className="flex flex-col">

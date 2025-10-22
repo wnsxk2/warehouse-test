@@ -2,10 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ItemsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(
     companyId: string,
@@ -107,6 +111,15 @@ export class ItemsService {
       },
     });
 
+    // Create notification for all users in the company
+    await this.notificationsService.createForCompany(
+      companyId,
+      'ITEM_CREATED',
+      '새 아이템 등록',
+      `새로운 아이템 "${item.name}" (SKU: ${item.sku})이(가) 등록되었습니다.`,
+      item.id,
+    );
+
     return item;
   }
 
@@ -161,6 +174,15 @@ export class ItemsService {
         deletedAt: new Date(),
       },
     });
+
+    // Create notification for all users in the company
+    await this.notificationsService.createForCompany(
+      companyId,
+      'ITEM_DELETED',
+      '아이템 삭제',
+      `아이템 "${item.name}" (SKU: ${item.sku})이(가) 삭제되었습니다.`,
+      item.id,
+    );
 
     return deletedItem;
   }

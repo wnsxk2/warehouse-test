@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class WarehousesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(companyId: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
@@ -70,6 +74,15 @@ export class WarehousesService {
       },
     });
 
+    // Create notification for all users in the company
+    await this.notificationsService.createForCompany(
+      companyId,
+      'WAREHOUSE_CREATED',
+      '새 창고 생성',
+      `새로운 창고 "${warehouse.name}"이(가) 생성되었습니다.`,
+      warehouse.id,
+    );
+
     return warehouse;
   }
 
@@ -94,17 +107,26 @@ export class WarehousesService {
 
   async remove(id: string, companyId: string) {
     // Verify warehouse exists and belongs to company
-    await this.findOne(id, companyId);
+    const warehouse = await this.findOne(id, companyId);
 
     // Soft delete: set deletedAt timestamp
-    const warehouse = await this.prisma.warehouse.update({
+    const deletedWarehouse = await this.prisma.warehouse.update({
       where: { id },
       data: {
         deletedAt: new Date(),
       },
     });
 
-    return warehouse;
+    // Create notification for all users in the company
+    await this.notificationsService.createForCompany(
+      companyId,
+      'WAREHOUSE_DELETED',
+      '창고 삭제',
+      `창고 "${warehouse.name}"이(가) 삭제되었습니다.`,
+      warehouse.id,
+    );
+
+    return deletedWarehouse;
   }
 
   async getInventory(id: string, companyId: string) {

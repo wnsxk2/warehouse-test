@@ -20,11 +20,12 @@ model Company {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  users        User[]
-  warehouses   Warehouse[]
-  items        Item[]
-  transactions Transaction[]
-  inviteCodes  InviteCode[]
+  users         User[]
+  warehouses    Warehouse[]
+  items         Item[]
+  transactions  Transaction[]
+  inviteCodes   InviteCode[]
+  notifications Notification[]
 
   @@map("companies")
 }
@@ -45,6 +46,7 @@ model User {
   transactions  Transaction[]
   refreshTokens RefreshToken[]
   inviteCodes   InviteCode[]
+  notifications Notification[]
 
   @@index([companyId])
   @@index([companyId, role])
@@ -180,4 +182,32 @@ model InviteCode {
   @@index([code, isActive])
   @@index([companyId, isActive])
   @@map("invite_codes")
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  companyId   String
+  userId      String?
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  relatedId   String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([companyId, isRead, createdAt(sort: Desc)])
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  WAREHOUSE_CREATED
+  WAREHOUSE_DELETED
+  ITEM_CREATED
+  ITEM_DELETED
+  TRANSACTION_CREATED
 }

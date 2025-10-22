@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(createTransactionDto: CreateTransactionDto, userId: string, companyId: string) {
     const { type, warehouseId, itemId, quantity, notes } = createTransactionDto;
@@ -118,6 +122,17 @@ export class TransactionsService {
         },
       });
 
+      return transaction;
+    }).then(async (transaction) => {
+      // Create notification after transaction completes
+      const transactionTypeKo = transaction.type === 'INBOUND' ? '반입' : '반출';
+      await this.notificationsService.createForCompany(
+        companyId,
+        'TRANSACTION_CREATED',
+        `${transactionTypeKo} 거래 발생`,
+        `${transaction.warehouse.name}에서 ${transaction.item.name} ${quantity}${transaction.item.unitOfMeasure} ${transactionTypeKo} 처리되었습니다.`,
+        transaction.id,
+      );
       return transaction;
     });
   }
