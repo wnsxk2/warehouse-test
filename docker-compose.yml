@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
       args:
         # 👇 빌드 시점에 이 값을 전달합니다.
-        - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+        - NEXT_PUBLIC_API_URL=http://3.34.246.202:3001/api
     container_name: warehouse-frontend
     ports:
       - 3000:3000
