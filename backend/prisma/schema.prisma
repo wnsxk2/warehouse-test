@@ -30,21 +30,33 @@ model Company {
   @@map("companies")
 }
 
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  password      String
-  name          String
-  role          Role           @default(USER)
-  companyId     String?
-  isActive      Boolean        @default(true)
-  lastLoginAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+model Account {
+  id          String         @id @default(uuid())
+  email       String         @unique
+  password    String
+  isActive    Boolean        @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
+  user          User?
+  refreshTokens RefreshToken[]
+
+  @@map("accounts")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  accountId String   @unique
+  name      String
+  role      Role     @default(USER)
+  companyId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account       Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   company       Company?       @relation(fields: [companyId], references: [id])
   transactions  Transaction[]
-  refreshTokens RefreshToken[]
   inviteCodes   InviteCode[]
   notifications Notification[]
 
@@ -63,15 +75,15 @@ enum Role {
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
-  userId    String
+  accountId String
   expiresAt DateTime
   isRevoked Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([userId, expiresAt, isRevoked])
+  @@index([accountId])
+  @@index([accountId, expiresAt, isRevoked])
   @@map("refresh_tokens")
 }
 

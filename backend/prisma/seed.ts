@@ -6,18 +6,25 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Start seeding...');
 
-  // Create super admin user (no company association)
-  const superAdmin = await prisma.user.create({
+  // Create super admin account and user (no company association)
+  const superAdminAccount = await prisma.account.create({
     data: {
       email: 'superadmin@system.com',
       password: await bcrypt.hash('admin123', 12),
-      name: 'Super Administrator',
-      role: 'SUPER_ADMIN',
-      companyId: null,
+      user: {
+        create: {
+          name: 'Super Administrator',
+          role: 'SUPER_ADMIN',
+          companyId: null,
+        },
+      },
+    },
+    include: {
+      user: true,
     },
   });
 
-  console.log('Created super admin:', superAdmin.email);
+  console.log('Created super admin:', superAdminAccount.email);
 
   // Create demo company with admin user
   const company = await prisma.company.create({
@@ -28,10 +35,14 @@ async function main() {
       address: 'Seoul, South Korea',
       users: {
         create: {
-          email: 'admin@demo.com',
-          password: await bcrypt.hash('password123', 12),
           name: 'Demo Admin',
           role: 'ADMIN',
+          account: {
+            create: {
+              email: 'admin@demo.com',
+              password: await bcrypt.hash('password123', 12),
+            },
+          },
         },
       },
       warehouses: {

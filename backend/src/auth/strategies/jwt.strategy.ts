@@ -26,18 +26,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub },
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
         companyId: true,
-        isActive: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+          },
+        },
       },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.account.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      isActive: user.account.isActive,
+    };
   }
 }

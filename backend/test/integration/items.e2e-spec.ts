@@ -32,10 +32,14 @@ describe('ItemsController (e2e)', () => {
         address: 'Test Address',
         users: {
           create: {
-            email: 'items@test.com',
-            password: await bcrypt.hash('password123', 12),
             name: 'Items Tester',
             role: 'ADMIN',
+            account: {
+              create: {
+                email: 'items@test.com',
+                password: await bcrypt.hash('password123', 12),
+              },
+            },
           },
         },
       },

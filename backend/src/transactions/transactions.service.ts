@@ -117,13 +117,24 @@ export class TransactionsService {
               select: {
                 id: true,
                 name: true,
-                email: true,
+                account: {
+                  select: {
+                    email: true,
+                  },
+                },
               },
             },
           },
         });
 
-        return transaction;
+        return {
+          ...transaction,
+          user: {
+            id: transaction.user.id,
+            name: transaction.user.name,
+            email: transaction.user.account.email,
+          },
+        };
       })
       .then(async (transaction) => {
         // Create notification after transaction completes
@@ -203,7 +214,11 @@ export class TransactionsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            account: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -214,7 +229,14 @@ export class TransactionsService {
       },
     });
 
-    return transactions;
+    return transactions.map((transaction) => ({
+      ...transaction,
+      user: {
+        id: transaction.user.id,
+        name: transaction.user.name,
+        email: transaction.user.account.email,
+      },
+    }));
   }
 
   async findOne(id: string, companyId: string) {
@@ -243,8 +265,12 @@ export class TransactionsService {
           select: {
             id: true,
             name: true,
-            email: true,
             role: true,
+            account: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -254,6 +280,14 @@ export class TransactionsService {
       throw new NotFoundException('Transaction not found');
     }
 
-    return transaction;
+    return {
+      ...transaction,
+      user: {
+        id: transaction.user.id,
+        name: transaction.user.name,
+        role: transaction.user.role,
+        email: transaction.user.account.email,
+      },
+    };
   }
 }

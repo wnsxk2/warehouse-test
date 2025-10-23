@@ -35,9 +35,11 @@ describe('Inventory (e2e)', () => {
     authToken = loginResponse.body.accessToken;
 
     // Get user's company to create test data
-    const user = await prisma.user.findUnique({
+    const account = await prisma.account.findUnique({
       where: { email: 'admin@demo.com' },
+      include: { user: true },
     });
+    const user = account?.user;
 
     // Create a test warehouse
     const warehouse = await prisma.warehouse.create({
@@ -203,9 +205,11 @@ describe('Inventory (e2e)', () => {
 
     it('should return empty array for warehouse with no inventory', async () => {
       // Create a new empty warehouse
-      const user = await prisma.user.findUnique({
+      const account = await prisma.account.findUnique({
         where: { email: 'admin@demo.com' },
+        include: { user: true },
       });
+      const user = account?.user;
 
       const emptyWarehouse = await prisma.warehouse.create({
         data: {

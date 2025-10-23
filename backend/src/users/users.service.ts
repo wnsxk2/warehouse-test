@@ -16,33 +16,47 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     // Check if email already exists
-    const existingUser = await this.prisma.user.findUnique({
+    const existingAccount = await this.prisma.account.findUnique({
       where: { email: createUserDto.email },
     });
 
-    if (existingUser) {
+    if (existingAccount) {
       throw new ConflictException('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    return this.prisma.user.create({
+    const account = await this.prisma.account.create({
       data: {
-        ...createUserDto,
+        email: createUserDto.email,
         password: hashedPassword,
+        user: {
+          create: {
+            name: createUserDto.name,
+            companyId: createUserDto.companyId,
+          },
+        },
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        user: true,
       },
     });
+
+    if (!account.user) {
+      throw new Error('Failed to create user');
+    }
+
+    return {
+      id: account.user.id,
+      email: account.email,
+      name: account.user.name,
+      role: account.user.role,
+      companyId: account.user.companyId,
+      isActive: account.isActive,
+      createdAt: account.user.createdAt,
+      updatedAt: account.user.updatedAt,
+    };
   }
 
   async findAll(companyId?: string) {
@@ -52,20 +66,35 @@ export class UsersService {
       where.companyId = companyId;
     }
 
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where,
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
         companyId: true,
-        isActive: true,
         createdAt: true,
         updatedAt: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      isActive: user.account.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
   }
 
   async findOne(id: string) {
@@ -73,11 +102,17 @@ export class UsersService {
       where: { id },
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
         companyId: true,
-        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+          },
+        },
         company: {
           select: {
             id: true,
@@ -85,8 +120,6 @@ export class UsersService {
             address: true,
           },
         },
-        createdAt: true,
-        updatedAt: true,
       },
     });
 
@@ -94,18 +127,43 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      isActive: user.account.isActive,
+      company: user.company,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
+    const account = await this.prisma.account.findUnique({
       where: { email },
+      include: { user: true },
     });
+
+    if (!account || !account.user) {
+      return null;
+    }
+
+    return {
+      id: account.user.id,
+      email: account.email,
+      name: account.user.name,
+      role: account.user.role,
+      companyId: account.user.companyId,
+      isActive: account.isActive,
+    };
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { account: true },
     });
 
     if (!user) {
@@ -113,62 +171,107 @@ export class UsersService {
     }
 
     // Check email uniqueness if email is being updated
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.prisma.user.findUnique({
+    if (updateUserDto.email && updateUserDto.email !== user.account.email) {
+      const existingAccount = await this.prisma.account.findUnique({
         where: { email: updateUserDto.email },
       });
 
-      if (existingUser) {
+      if (existingAccount) {
         throw new ConflictException('Email already exists');
       }
     }
 
-    // Hash password if provided
-    const data: any = { ...updateUserDto };
+    // Update account (email, password)
+    const accountData: any = {};
+    if (updateUserDto.email) {
+      accountData.email = updateUserDto.email;
+    }
     if (updateUserDto.password) {
-      data.password = await bcrypt.hash(updateUserDto.password, 10);
+      accountData.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    return this.prisma.user.update({
+    if (Object.keys(accountData).length > 0) {
+      await this.prisma.account.update({
+        where: { id: user.accountId },
+        data: accountData,
+      });
+    }
+
+    // Update user (name, companyId)
+    const userData: any = {};
+    if (updateUserDto.name !== undefined) {
+      userData.name = updateUserDto.name;
+    }
+    if (updateUserDto.companyId !== undefined) {
+      userData.companyId = updateUserDto.companyId;
+    }
+
+    let updatedUser = user;
+    if (Object.keys(userData).length > 0) {
+      updatedUser = await this.prisma.user.update({
+        where: { id },
+        data: userData,
+        include: { account: true },
+      });
+    }
+
+    // Refetch to get updated data
+    const result = await this.prisma.user.findUnique({
       where: { id },
-      data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    if (!result) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return {
+      id: result.id,
+      email: result.account.email,
+      name: result.name,
+      role: result.role,
+      companyId: result.companyId,
+      isActive: result.account.isActive,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   }
 
   async remove(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { account: true },
     });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Soft delete by setting isActive to false
-    return this.prisma.user.update({
-      where: { id },
+    // Soft delete by setting account isActive to false
+    await this.prisma.account.update({
+      where: { id: user.accountId },
       data: { isActive: false },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
     });
+
+    const result = await this.prisma.user.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!result) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return {
+      id: result.id,
+      email: result.account.email,
+      name: result.name,
+      role: result.role,
+      companyId: result.companyId,
+      isActive: result.account.isActive,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   }
 
   // Admin-only methods
@@ -191,41 +294,54 @@ export class UsersService {
     }
 
     // Check if email already exists
-    const existingUser = await this.prisma.user.findUnique({
+    const existingAccount = await this.prisma.account.findUnique({
       where: { email: createUserAdminDto.email },
     });
 
-    if (existingUser) {
+    if (existingAccount) {
       throw new ConflictException('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(createUserAdminDto.password, 10);
 
-    return this.prisma.user.create({
+    const account = await this.prisma.account.create({
       data: {
         email: createUserAdminDto.email,
         password: hashedPassword,
-        name: createUserAdminDto.name,
-        role: createUserAdminDto.role as any,
-        companyId: createUserAdminDto.companyId,
+        user: {
+          create: {
+            name: createUserAdminDto.name,
+            role: createUserAdminDto.role as any,
+            companyId: createUserAdminDto.companyId,
+          },
+        },
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        user: true,
       },
     });
+
+    if (!account.user) {
+      throw new Error('Failed to create user');
+    }
+
+    return {
+      id: account.user.id,
+      email: account.email,
+      name: account.user.name,
+      role: account.user.role,
+      companyId: account.user.companyId,
+      isActive: account.isActive,
+      createdAt: account.user.createdAt,
+      updatedAt: account.user.updatedAt,
+    };
   }
 
   async updateUserRole(id: string, role: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { account: true },
     });
 
     if (!user) {
@@ -237,25 +353,28 @@ export class UsersService {
       throw new BadRequestException('Cannot modify SUPER_ADMIN role');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { role: role as any },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    return {
+      id: updated.id,
+      email: updated.account.email,
+      name: updated.name,
+      role: updated.role,
+      companyId: updated.companyId,
+      isActive: updated.account.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   async deleteUserByAdmin(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { account: true },
     });
 
     if (!user) {
@@ -273,48 +392,65 @@ export class UsersService {
     }
 
     // Remove user from company (soft removal - just unassign)
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         companyId: null,
         role: 'USER', // Reset role to USER when removing from company
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    return {
+      id: updated.id,
+      email: updated.account.email,
+      name: updated.name,
+      role: updated.role,
+      companyId: updated.companyId,
+      isActive: updated.account.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   async getUnassignedUsers() {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         companyId: null,
         role: { not: 'SUPER_ADMIN' },
       },
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
-        isActive: true,
         createdAt: true,
         updatedAt: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      isActive: user.account.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
   }
 
   async assignUserToCompany(userId: string, companyId: string, role: string) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: { account: true },
     });
 
     if (!user) {
@@ -353,23 +489,25 @@ export class UsersService {
     }
 
     // Assign user to company
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         companyId,
         role: role as any,
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    return {
+      id: updated.id,
+      email: updated.account.email,
+      name: updated.name,
+      role: updated.role,
+      companyId: updated.companyId,
+      isActive: updated.account.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   // Company admin methods - manage their own company users
@@ -391,6 +529,7 @@ export class UsersService {
     // Get target user
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
+      include: { account: true },
     });
 
     if (!targetUser) {
@@ -412,20 +551,22 @@ export class UsersService {
       throw new BadRequestException('Role must be USER or ADMIN');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: targetUserId },
       data: { role: role as any },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    return {
+      id: updated.id,
+      email: updated.account.email,
+      name: updated.name,
+      role: updated.role,
+      companyId: updated.companyId,
+      isActive: updated.account.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   async removeUserFromCompanyByAdmin(adminUserId: string, targetUserId: string) {
@@ -446,6 +587,7 @@ export class UsersService {
     // Get target user
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
+      include: { account: true },
     });
 
     if (!targetUser) {
@@ -468,22 +610,24 @@ export class UsersService {
     }
 
     // Remove user from company (soft removal - just unassign)
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: targetUserId },
       data: {
         companyId: null,
         role: 'USER', // Reset role to USER when removing from company
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      include: { account: true },
     });
+
+    return {
+      id: updated.id,
+      email: updated.account.email,
+      name: updated.name,
+      role: updated.role,
+      companyId: updated.companyId,
+      isActive: updated.account.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 }

@@ -79,11 +79,15 @@ export class CompaniesService {
         users: {
           select: {
             id: true,
-            email: true,
             name: true,
             role: true,
-            isActive: true,
             createdAt: true,
+            account: {
+              select: {
+                email: true,
+                isActive: true,
+              },
+            },
           },
         },
         _count: {
@@ -100,7 +104,18 @@ export class CompaniesService {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 
-    return company;
+    // Transform users to include email and isActive from account
+    return {
+      ...company,
+      users: company.users.map((user) => ({
+        id: user.id,
+        email: user.account.email,
+        name: user.name,
+        role: user.role,
+        isActive: user.account.isActive,
+        createdAt: user.createdAt,
+      })),
+    };
   }
 
   async update(id: string, updateCompanyDto: UpdateCompanyDto) {
@@ -142,20 +157,35 @@ export class CompaniesService {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { companyId: id },
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
-        isActive: true,
-        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+            lastLoginAt: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      isActive: user.account.isActive,
+      lastLoginAt: user.account.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
   }
 
   // Company admin methods
@@ -218,37 +248,49 @@ export class CompaniesService {
     }
 
     // Check if email already exists
-    const existingUser = await this.prisma.user.findUnique({
+    const existingAccount = await this.prisma.account.findUnique({
       where: { email: addUserDto.email },
     });
 
-    if (existingUser) {
+    if (existingAccount) {
       throw new ConflictException('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(addUserDto.password, 10);
 
-    // Create user and assign to company
-    return this.prisma.user.create({
+    // Create account and user, assign to company
+    const account = await this.prisma.account.create({
       data: {
         email: addUserDto.email,
         password: hashedPassword,
-        name: addUserDto.name,
-        role: addUserDto.role || 'USER',
-        companyId: admin.companyId,
+        user: {
+          create: {
+            name: addUserDto.name,
+            role: addUserDto.role || 'USER',
+            companyId: admin.companyId,
+          },
+        },
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        user: true,
       },
     });
+
+    if (!account.user) {
+      throw new Error('Failed to create user');
+    }
+
+    return {
+      id: account.user.id,
+      email: account.email,
+      name: account.user.name,
+      role: account.user.role,
+      companyId: account.user.companyId,
+      isActive: account.isActive,
+      createdAt: account.user.createdAt,
+      updatedAt: account.user.updatedAt,
+    };
   }
 
   // Invite code methods
@@ -342,7 +384,7 @@ export class CompaniesService {
       throw new BadRequestException('Only company admins can view invite codes');
     }
 
-    return this.prisma.inviteCode.findMany({
+    const inviteCodes = await this.prisma.inviteCode.findMany({
       where: { companyId: admin.companyId },
       select: {
         id: true,
@@ -355,12 +397,24 @@ export class CompaniesService {
         creator: {
           select: {
             name: true,
-            email: true,
+            account: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return inviteCodes.map((code) => ({
+      ...code,
+      creator: {
+        name: code.creator.name,
+        email: code.creator.account.email,
+      },
+    }));
   }
 
   async deactivateInviteCode(adminUserId: string, inviteCodeId: string) {
@@ -463,13 +517,13 @@ export class CompaniesService {
           companyId: inviteCode.companyId,
           role: 'USER',
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          companyId: true,
-          isActive: true,
+        include: {
+          account: {
+            select: {
+              email: true,
+              isActive: true,
+            },
+          },
         },
       });
 
@@ -481,7 +535,14 @@ export class CompaniesService {
         },
       });
 
-      return updatedUser;
+      return {
+        id: updatedUser.id,
+        email: updatedUser.account.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        companyId: updatedUser.companyId,
+        isActive: updatedUser.account.isActive,
+      };
     });
 
     return result;

@@ -35,10 +35,14 @@ describe('TransactionsController (e2e)', () => {
         address: 'Test Address',
         users: {
           create: {
-            email: 'transaction@test.com',
-            password: await bcrypt.hash('password123', 12),
             name: 'Transaction Tester',
             role: 'ADMIN',
+            account: {
+              create: {
+                email: 'transaction@test.com',
+                password: await bcrypt.hash('password123', 12),
+              },
+            },
           },
         },
       },

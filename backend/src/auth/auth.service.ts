@@ -16,60 +16,91 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
+    // Check if account already exists
+    const existingAccount = await this.prisma.account.findUnique({
       where: { email: registerDto.email },
     });
 
-    if (existingUser) {
+    if (existingAccount) {
       throw new ConflictException('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
 
-    // Create user (without company, will be assigned by admin later)
-    const user = await this.prisma.user.create({
+    // Create account and user (without company, will be assigned by admin later)
+    const account = await this.prisma.account.create({
       data: {
         email: registerDto.email,
         password: hashedPassword,
-        name: registerDto.name,
-        role: 'USER',
-        companyId: null,
+        user: {
+          create: {
+            name: registerDto.name,
+            role: 'USER',
+            companyId: null,
+          },
+        },
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
+    if (!account.user) {
+      throw new Error('Failed to create user');
+    }
+
     return {
       message: 'Registration successful',
-      user,
+      user: {
+        id: account.user.id,
+        email: account.email,
+        name: account.user.name,
+        role: account.user.role,
+        createdAt: account.user.createdAt,
+      },
     };
   }
 
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+    const account = await this.prisma.account.findUnique({
       where: { email },
-      include: { company: true },
+      include: {
+        user: {
+          include: {
+            company: true,
+          },
+        },
+      },
     });
 
-    if (!user || !user.isActive) {
+    if (!account || !account.isActive || !account.user) {
       return null;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, account.password);
     if (!isPasswordValid) {
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...result } = user;
-    return result;
+    return {
+      id: account.user.id,
+      accountId: account.id,
+      email: account.email,
+      name: account.user.name,
+      role: account.user.role,
+      companyId: account.user.companyId,
+      company: account.user.company,
+      isActive: account.isActive,
+      lastLoginAt: account.lastLoginAt,
+    };
   }
 
   async login(loginDto: LoginDto) {
@@ -79,9 +110,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Update last login timestamp
-    await this.prisma.user.update({
-      where: { id: user.id },
+    // Update last login timestamp on account
+    await this.prisma.account.update({
+      where: { id: user.accountId },
       data: { lastLoginAt: new Date() },
     });
 
@@ -97,7 +128,7 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(
-      { sub: user.id },
+      { sub: user.accountId },
       {
         secret: this.configService.get('JWT_SECRET'),
         expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION'),
@@ -112,7 +143,7 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: {
         token: hashedRefreshToken,
-        userId: user.id,
+        accountId: user.accountId,
         expiresAt,
       },
     });
@@ -136,10 +167,10 @@ export class AuthService {
         secret: this.configService.get('JWT_SECRET'),
       });
 
-      // Find matching refresh token in database
+      // Find matching refresh token in database (payload.sub is accountId)
       const storedTokens = await this.prisma.refreshToken.findMany({
         where: {
-          userId: payload.sub,
+          accountId: payload.sub,
           isRevoked: false,
         },
       });
@@ -164,19 +195,24 @@ export class AuthService {
         data: { isRevoked: true },
       });
 
-      // Get user details
-      const user = await this.prisma.user.findUnique({
+      // Get account and user details
+      const account = await this.prisma.account.findUnique({
         where: { id: payload.sub },
+        include: {
+          user: true,
+        },
       });
 
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException('User not found or inactive');
+      if (!account || !account.isActive || !account.user) {
+        throw new UnauthorizedException('Account not found or inactive');
       }
+
+      const user = account.user;
 
       // Generate new tokens
       const newPayload: JwtPayload = {
         sub: user.id,
-        email: user.email,
+        email: account.email,
         companyId: user.companyId,
         role: user.role,
       };
@@ -186,7 +222,7 @@ export class AuthService {
       });
 
       const newRefreshToken = this.jwtService.sign(
-        { sub: user.id },
+        { sub: account.id },
         {
           secret: this.configService.get('JWT_SECRET'),
           expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION'),
@@ -201,7 +237,7 @@ export class AuthService {
       await this.prisma.refreshToken.create({
         data: {
           token: hashedRefreshToken,
-          userId: user.id,
+          accountId: account.id,
           expiresAt,
         },
       });
@@ -216,10 +252,20 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    // Revoke all user's refresh tokens
+    // Find user's account
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { accountId: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Revoke all account's refresh tokens
     await this.prisma.refreshToken.updateMany({
       where: {
-        userId,
+        accountId: user.accountId,
         isRevoked: false,
       },
       data: {
@@ -235,14 +281,18 @@ export class AuthService {
       where: { id: userId },
       select: {
         id: true,
-        email: true,
         name: true,
         role: true,
         companyId: true,
-        isActive: true,
-        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        account: {
+          select: {
+            email: true,
+            isActive: true,
+            lastLoginAt: true,
+          },
+        },
         company: {
           select: {
             id: true,
@@ -257,6 +307,17 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.account.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      isActive: user.account.isActive,
+      lastLoginAt: user.account.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      company: user.company,
+    };
   }
 }
