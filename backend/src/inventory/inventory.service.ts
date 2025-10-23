@@ -20,7 +20,7 @@ export class InventoryService {
       where: {
         id: warehouseId,
         companyId,
-        deletedAt: null,
+        
       },
       include: {
         inventory: true,
@@ -36,7 +36,7 @@ export class InventoryService {
       where: {
         id: itemId,
         companyId,
-        deletedAt: null,
+        
       },
     });
 
@@ -182,7 +182,7 @@ export class InventoryService {
       where: {
         id: warehouseId,
         companyId,
-        deletedAt: null,
+        
       },
     });
 

@@ -25,7 +25,6 @@ export class ItemsService {
 
     const where: any = {
       companyId,
-      deletedAt: null,
     };
 
     if (search) {
@@ -54,7 +53,7 @@ export class ItemsService {
 
   async findOne(id: string, companyId: string) {
     const item = await this.prisma.item.findFirst({
-      where: { id, companyId, deletedAt: null },
+      where: { id, companyId },
       include: {
         inventory: {
           select: {
@@ -91,7 +90,6 @@ export class ItemsService {
       where: {
         sku,
         companyId,
-        deletedAt: null,
       },
     });
 
@@ -126,7 +124,7 @@ export class ItemsService {
   async update(id: string, updateItemDto: UpdateItemDto, companyId: string) {
     // Verify item exists and belongs to company
     const item = await this.prisma.item.findFirst({
-      where: { id, companyId, deletedAt: null },
+      where: { id, companyId },
     });
 
     if (!item) {
@@ -139,7 +137,6 @@ export class ItemsService {
         where: {
           sku: updateItemDto.sku,
           companyId,
-          deletedAt: null,
           id: { not: id },
         },
       });
@@ -160,19 +157,16 @@ export class ItemsService {
   async remove(id: string, companyId: string) {
     // Verify item exists and belongs to company
     const item = await this.prisma.item.findFirst({
-      where: { id, companyId, deletedAt: null },
+      where: { id, companyId },
     });
 
     if (!item) {
       throw new NotFoundException('Item not found');
     }
 
-    // Soft delete
-    const deletedItem = await this.prisma.item.update({
+    // Hard delete (history is automatically saved by Prisma middleware)
+    await this.prisma.item.delete({
       where: { id },
-      data: {
-        deletedAt: new Date(),
-      },
     });
 
     // Create notification for all users in the company
@@ -184,6 +178,6 @@ export class ItemsService {
       item.id,
     );
 
-    return deletedItem;
+    return item;
   }
 }

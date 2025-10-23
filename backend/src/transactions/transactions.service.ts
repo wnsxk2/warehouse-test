@@ -18,7 +18,7 @@ export class TransactionsService {
       .$transaction(async (tx) => {
         // Verify warehouse exists and belongs to company
         const warehouse = await tx.warehouse.findFirst({
-          where: { id: warehouseId, companyId, deletedAt: null },
+          where: { id: warehouseId, companyId },
         });
 
         if (!warehouse) {
@@ -27,7 +27,7 @@ export class TransactionsService {
 
         // Verify item exists and belongs to company
         const item = await tx.item.findFirst({
-          where: { id: itemId, companyId, deletedAt: null },
+          where: { id: itemId, companyId },
         });
 
         if (!item) {

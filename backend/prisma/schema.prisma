@@ -26,6 +26,7 @@ model Company {
   transactions  Transaction[]
   inviteCodes   InviteCode[]
   notifications Notification[]
+  history       CompanyHistory[]
 
   @@map("companies")
 }
@@ -41,6 +42,7 @@ model Account {
 
   user          User?
   refreshTokens RefreshToken[]
+  history       AccountHistory[]
 
   @@map("accounts")
 }
@@ -59,6 +61,7 @@ model User {
   transactions  Transaction[]
   inviteCodes   InviteCode[]
   notifications Notification[]
+  history       UserHistory[]
 
   @@index([companyId])
   @@index([companyId, role])
@@ -93,16 +96,15 @@ model Warehouse {
   location    String
   capacity    Decimal     @db.Decimal(10, 2)
   companyId   String
-  deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  company      Company       @relation(fields: [companyId], references: [id])
+  company      Company          @relation(fields: [companyId], references: [id])
   inventory    Inventory[]
   transactions Transaction[]
+  history      WarehouseHistory[]
 
   @@index([companyId])
-  @@index([companyId, deletedAt])
   @@map("warehouses")
 }
 
@@ -115,17 +117,16 @@ model Item {
   description      String?     @db.Text
   reorderThreshold Int?
   companyId        String
-  deletedAt        DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
   company      Company       @relation(fields: [companyId], references: [id])
   inventory    Inventory[]
   transactions Transaction[]
+  history      ItemHistory[]
 
   @@index([companyId])
   @@index([companyId, category])
-  @@index([companyId, deletedAt])
   @@map("items")
 }
 
@@ -238,4 +239,102 @@ enum NotificationType {
   ITEM_CREATED
   ITEM_DELETED
   TRANSACTION_CREATED
+}
+
+enum HistoryOperation {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+// History Tables
+model ItemHistory {
+  id               String           @id @default(uuid())
+  originalId       String
+  operation        HistoryOperation
+  sku              String
+  name             String
+  category         String?
+  unitOfMeasure    String
+  description      String?          @db.Text
+  reorderThreshold Int?
+  companyId        String
+  changedBy        String?
+  changedAt        DateTime         @default(now())
+
+  item Item @relation(fields: [originalId], references: [id], onDelete: Cascade)
+
+  @@index([originalId, changedAt(sort: Desc)])
+  @@index([companyId, changedAt(sort: Desc)])
+  @@map("item_history")
+}
+
+model WarehouseHistory {
+  id         String           @id @default(uuid())
+  originalId String
+  operation  HistoryOperation
+  name       String
+  location   String
+  capacity   Decimal          @db.Decimal(10, 2)
+  companyId  String
+  changedBy  String?
+  changedAt  DateTime         @default(now())
+
+  warehouse Warehouse @relation(fields: [originalId], references: [id], onDelete: Cascade)
+
+  @@index([originalId, changedAt(sort: Desc)])
+  @@index([companyId, changedAt(sort: Desc)])
+  @@map("warehouse_history")
+}
+
+model UserHistory {
+  id         String           @id @default(uuid())
+  originalId String
+  operation  HistoryOperation
+  accountId  String
+  name       String
+  role       Role
+  companyId  String?
+  changedBy  String?
+  changedAt  DateTime         @default(now())
+
+  user User @relation(fields: [originalId], references: [id], onDelete: Cascade)
+
+  @@index([originalId, changedAt(sort: Desc)])
+  @@index([companyId, changedAt(sort: Desc)])
+  @@map("user_history")
+}
+
+model AccountHistory {
+  id          String           @id @default(uuid())
+  originalId  String
+  operation   HistoryOperation
+  email       String
+  isActive    Boolean
+  lastLoginAt DateTime?
+  changedBy   String?
+  changedAt   DateTime         @default(now())
+
+  account Account @relation(fields: [originalId], references: [id], onDelete: Cascade)
+
+  @@index([originalId, changedAt(sort: Desc)])
+  @@map("account_history")
+}
+
+model CompanyHistory {
+  id         String           @id @default(uuid())
+  originalId String
+  operation  HistoryOperation
+  name       String
+  email      String
+  phone      String?
+  address    String?
+  maxUsers   Int
+  changedBy  String?
+  changedAt  DateTime         @default(now())
+
+  company Company @relation(fields: [originalId], references: [id], onDelete: Cascade)
+
+  @@index([originalId, changedAt(sort: Desc)])
+  @@map("company_history")
 }

@@ -17,7 +17,6 @@ export class WarehousesService {
     const warehouses = await this.prisma.warehouse.findMany({
       where: {
         companyId,
-        deletedAt: null,
       },
       include: {
         _count: {
@@ -41,7 +40,6 @@ export class WarehousesService {
       where: {
         id,
         companyId,
-        deletedAt: null,
       },
       include: {
         _count: {
@@ -109,12 +107,9 @@ export class WarehousesService {
     // Verify warehouse exists and belongs to company
     const warehouse = await this.findOne(id, companyId);
 
-    // Soft delete: set deletedAt timestamp
-    const deletedWarehouse = await this.prisma.warehouse.update({
+    // Hard delete (history is automatically saved by Prisma middleware)
+    await this.prisma.warehouse.delete({
       where: { id },
-      data: {
-        deletedAt: new Date(),
-      },
     });
 
     // Create notification for all users in the company
@@ -126,7 +121,7 @@ export class WarehousesService {
       warehouse.id,
     );
 
-    return deletedWarehouse;
+    return warehouse;
   }
 
   async getInventory(id: string, companyId: string) {

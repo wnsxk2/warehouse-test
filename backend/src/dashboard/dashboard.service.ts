@@ -11,7 +11,6 @@ export class DashboardService {
     const totalWarehouses = await this.prisma.warehouse.count({
       where: {
         companyId,
-        deletedAt: null,
       },
     });
 
@@ -19,7 +18,6 @@ export class DashboardService {
     const totalItems = await this.prisma.item.count({
       where: {
         companyId,
-        deletedAt: null,
       },
     });
 
@@ -27,7 +25,6 @@ export class DashboardService {
     const items = await this.prisma.item.findMany({
       where: {
         companyId,
-        deletedAt: null,
         reorderThreshold: { not: null },
       },
       include: {

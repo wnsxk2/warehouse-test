@@ -222,16 +222,20 @@ describe('Warehouses (e2e)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      // Verify it's soft deleted (deletedAt is set)
+      // Verify it's hard deleted (record no longer exists)
       const deletedWarehouse = await prisma.warehouse.findUnique({
         where: { id: testWarehouseId },
       });
 
-      expect(deletedWarehouse).not.toBeNull();
-      expect(deletedWarehouse?.deletedAt).not.toBeNull();
+      expect(deletedWarehouse).toBeNull();
 
-      // Clean up
-      await prisma.warehouse.delete({ where: { id: testWarehouseId } });
+      // Verify history was saved
+      const history = await prisma.warehouseHistory.findMany({
+        where: { originalId: testWarehouseId },
+      });
+
+      expect(history.length).toBeGreaterThan(0);
+      expect(history[0].operation).toBe('DELETE');
     });
 
     it('should return 404 for non-existent warehouse', async () => {
