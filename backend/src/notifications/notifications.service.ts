@@ -124,7 +124,7 @@ export class NotificationsService {
   }
 
   /**
-   * Get all notifications for a user
+   * Get unread notifications for a user
    */
   async findAllForUser(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -136,23 +136,23 @@ export class NotificationsService {
       return [];
     }
 
-    // Get notifications for the user or all users in the company
+    // Get only unread notifications for the user or all users in the company
     const notifications = await this.prisma.notification.findMany({
       where: {
         companyId: user.companyId,
         OR: [{ userId: userId }, { userId: null }],
-      },
-      include: {
+        // Only include notifications that haven't been read by this user
         notificationRead: {
-          where: { userId: userId },
-          select: { id: true },
+          none: {
+            userId: userId,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
-    // Transform to include isRead based on NotificationRead
+    // Transform to include isRead (all are unread at this point)
     return notifications.map((notification) => ({
       id: notification.id,
       companyId: notification.companyId,
@@ -161,7 +161,7 @@ export class NotificationsService {
       title: notification.title,
       message: notification.message,
       relatedId: notification.relatedId,
-      isRead: notification.notificationRead.length > 0,
+      isRead: false, // All returned notifications are unread
       createdAt: notification.createdAt,
       updatedAt: notification.updatedAt,
     }));
