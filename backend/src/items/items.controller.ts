@@ -25,6 +25,11 @@ export class ItemsController {
     return this.itemsService.create(createItemDto, user.companyId);
   }
 
+  @Get('stock-summary')
+  getStockSummary(@GetUser() user: any) {
+    return this.itemsService.getStockSummary(user.companyId);
+  }
+
   @Get()
   findAll(
     @GetUser() user: any,

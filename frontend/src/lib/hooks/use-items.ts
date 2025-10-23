@@ -89,3 +89,10 @@ export function useDeleteItem() {
     },
   });
 }
+
+export function useStockSummary() {
+  return useQuery({
+    queryKey: ['items', 'stock-summary'],
+    queryFn: () => itemsApi.getStockSummary(),
+  });
+}

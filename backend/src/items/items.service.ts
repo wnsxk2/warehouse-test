@@ -11,6 +11,50 @@ export class ItemsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  async getStockSummary(companyId: string) {
+    const items = await this.prisma.item.findMany({
+      where: { companyId },
+      include: {
+        inventory: {
+          include: {
+            warehouse: {
+              select: {
+                id: true,
+                name: true,
+                location: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return items.map((item) => {
+      const totalQuantity = item.inventory.reduce((sum, inv) => sum + Number(inv.quantity), 0);
+      const warehouseDistribution = item.inventory.map((inv) => ({
+        warehouseId: inv.warehouse.id,
+        warehouseName: inv.warehouse.name,
+        warehouseLocation: inv.warehouse.location,
+        quantity: Number(inv.quantity),
+      }));
+
+      return {
+        id: item.id,
+        sku: item.sku,
+        name: item.name,
+        category: item.category,
+        unitOfMeasure: item.unitOfMeasure,
+        reorderThreshold: item.reorderThreshold,
+        totalQuantity,
+        warehouseDistribution,
+        isLowStock: item.reorderThreshold ? totalQuantity <= item.reorderThreshold : false,
+      };
+    });
+  }
+
   async findAll(
     companyId: string,
     filters?: {

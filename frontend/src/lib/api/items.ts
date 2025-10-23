@@ -22,6 +22,25 @@ export interface ItemFilters {
   limit?: number;
 }
 
+export interface WarehouseDistribution {
+  warehouseId: string;
+  warehouseName: string;
+  warehouseLocation: string;
+  quantity: number;
+}
+
+export interface ItemStockSummary {
+  id: string;
+  sku: string;
+  name: string;
+  category: string | null;
+  unitOfMeasure: string;
+  reorderThreshold: number | null;
+  totalQuantity: number;
+  warehouseDistribution: WarehouseDistribution[];
+  isLowStock: boolean;
+}
+
 export const itemsApi = {
   getAll: async (filters?: ItemFilters): Promise<Item[]> => {
     const params = new URLSearchParams();
@@ -71,6 +90,11 @@ export const itemsApi = {
 
   delete: async (id: string): Promise<Item> => {
     const response = await apiClient.delete(`/items/${id}`);
+    return response.data;
+  },
+
+  getStockSummary: async (): Promise<ItemStockSummary[]> => {
+    const response = await apiClient.get('/items/stock-summary');
     return response.data;
   },
 };
