@@ -137,7 +137,7 @@ export class TransactionsService {
         };
       })
       .then(async (transaction) => {
-        // Create notification after transaction completes
+        // Create notification after transaction completes (excluding the user who created it)
         const transactionTypeKo = transaction.type === 'INBOUND' ? '반입' : '반출';
         await this.notificationsService.createForCompany(
           companyId,
@@ -145,6 +145,7 @@ export class TransactionsService {
           `${transactionTypeKo} 거래 발생`,
           `${transaction.warehouse.name}에서 ${transaction.item.name} ${quantity}${transaction.item.unitOfMeasure} ${transactionTypeKo} 처리되었습니다.`,
           transaction.id,
+          userId, // Exclude the user who created the transaction
         );
         return transaction;
       });

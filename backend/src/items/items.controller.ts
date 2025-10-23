@@ -22,7 +22,7 @@ export class ItemsController {
 
   @Post()
   create(@Body() createItemDto: CreateItemDto, @GetUser() user: any) {
-    return this.itemsService.create(createItemDto, user.companyId);
+    return this.itemsService.create(createItemDto, user.companyId, user.id);
   }
 
   @Get('stock-summary')
@@ -60,6 +60,6 @@ export class ItemsController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @GetUser() user: any) {
-    return this.itemsService.remove(id, user.companyId);
+    return this.itemsService.remove(id, user.companyId, user.id);
   }
 }

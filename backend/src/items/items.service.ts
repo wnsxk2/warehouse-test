@@ -126,7 +126,7 @@ export class ItemsService {
     };
   }
 
-  async create(createItemDto: CreateItemDto, companyId: string) {
+  async create(createItemDto: CreateItemDto, companyId: string, userId: string) {
     const { sku, name, category, unitOfMeasure, description, reorderThreshold } = createItemDto;
 
     // Check for duplicate SKU
@@ -153,13 +153,14 @@ export class ItemsService {
       },
     });
 
-    // Create notification for all users in the company
+    // Create notification for all users in the company (excluding the user who created it)
     await this.notificationsService.createForCompany(
       companyId,
       'ITEM_CREATED',
       '새 아이템 등록',
       `새로운 아이템 "${item.name}" (SKU: ${item.sku})이(가) 등록되었습니다.`,
       item.id,
+      userId, // Exclude the user who created the item
     );
 
     return item;
@@ -198,7 +199,7 @@ export class ItemsService {
     return updatedItem;
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId: string, userId: string) {
     // Verify item exists and belongs to company
     const item = await this.prisma.item.findFirst({
       where: { id, companyId },
@@ -213,13 +214,14 @@ export class ItemsService {
       where: { id },
     });
 
-    // Create notification for all users in the company
+    // Create notification for all users in the company (excluding the user who deleted it)
     await this.notificationsService.createForCompany(
       companyId,
       'ITEM_DELETED',
       '아이템 삭제',
       `아이템 "${item.name}" (SKU: ${item.sku})이(가) 삭제되었습니다.`,
       item.id,
+      userId, // Exclude the user who deleted the item
     );
 
     return item;

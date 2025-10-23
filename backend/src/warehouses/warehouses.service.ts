@@ -57,7 +57,7 @@ export class WarehousesService {
     return warehouse;
   }
 
-  async create(createWarehouseDto: CreateWarehouseDto, companyId: string) {
+  async create(createWarehouseDto: CreateWarehouseDto, companyId: string, userId: string) {
     const warehouse = await this.prisma.warehouse.create({
       data: {
         ...createWarehouseDto,
@@ -72,13 +72,14 @@ export class WarehousesService {
       },
     });
 
-    // Create notification for all users in the company
+    // Create notification for all users in the company (excluding the user who created it)
     await this.notificationsService.createForCompany(
       companyId,
       'WAREHOUSE_CREATED',
       '새 창고 생성',
       `새로운 창고 "${warehouse.name}"이(가) 생성되었습니다.`,
       warehouse.id,
+      userId, // Exclude the user who created the warehouse
     );
 
     return warehouse;
@@ -103,7 +104,7 @@ export class WarehousesService {
     return warehouse;
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId: string, userId: string) {
     // Verify warehouse exists and belongs to company
     const warehouse = await this.findOne(id, companyId);
 
@@ -112,13 +113,14 @@ export class WarehousesService {
       where: { id },
     });
 
-    // Create notification for all users in the company
+    // Create notification for all users in the company (excluding the user who deleted it)
     await this.notificationsService.createForCompany(
       companyId,
       'WAREHOUSE_DELETED',
       '창고 삭제',
       `창고 "${warehouse.name}"이(가) 삭제되었습니다.`,
       warehouse.id,
+      userId, // Exclude the user who deleted the warehouse
     );
 
     return warehouse;

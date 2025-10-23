@@ -47,10 +47,19 @@ export class NotificationsService {
   /**
    * Broadcast notification to SSE clients
    */
-  private broadcastToSseClients(companyId: string, notification: any) {
+  private broadcastToSseClients(
+    companyId: string,
+    notification: any,
+    excludeUserId?: string,
+  ) {
     const clients = this.sseClients.get(companyId);
     if (clients) {
       clients.forEach((client) => {
+        // Exclude specific user if provided
+        if (excludeUserId && client.userId === excludeUserId) {
+          return;
+        }
+
         // Send to all users or specific user
         if (!notification.userId || notification.userId === client.userId) {
           client.subject.next({
@@ -84,6 +93,7 @@ export class NotificationsService {
     title: string,
     message: string,
     relatedId?: string,
+    excludeUserId?: string,
   ) {
     const notification = await this.prisma.notification.create({
       data: {
@@ -96,8 +106,19 @@ export class NotificationsService {
       },
     });
 
-    // Broadcast to SSE clients
-    this.broadcastToSseClients(companyId, notification);
+    // If excludeUserId is provided, automatically mark as read for that user
+    // This prevents the notification from appearing to the user who triggered it
+    if (excludeUserId) {
+      await this.prisma.notificationRead.create({
+        data: {
+          notificationId: notification.id,
+          userId: excludeUserId,
+        },
+      });
+    }
+
+    // Broadcast to SSE clients (excluding the user who triggered it)
+    this.broadcastToSseClients(companyId, notification, excludeUserId);
 
     return notification;
   }

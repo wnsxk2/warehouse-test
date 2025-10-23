@@ -22,7 +22,7 @@ export class WarehousesController {
 
   @Post()
   create(@Body() createWarehouseDto: CreateWarehouseDto, @GetUser() user: any) {
-    return this.warehousesService.create(createWarehouseDto, user.companyId);
+    return this.warehousesService.create(createWarehouseDto, user.companyId, user.id);
   }
 
   @Get()
@@ -48,7 +48,7 @@ export class WarehousesController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @GetUser() user: any) {
-    return this.warehousesService.remove(id, user.companyId);
+    return this.warehousesService.remove(id, user.companyId, user.id);
   }
 
   @Get(':id/inventory')

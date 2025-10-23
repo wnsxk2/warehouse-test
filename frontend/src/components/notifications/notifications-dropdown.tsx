@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useNotificationsSSE } from '@/hooks/use-notifications-sse';
+import apiClient from '@/lib/api/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,7 +33,10 @@ export function NotificationsDropdown() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -54,9 +57,7 @@ export function NotificationsDropdown() {
       const token = localStorage.getItem('accessToken');
       if (!token) return [];
 
-      const response = await axios.get(`${API_URL}/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get(`/notifications`);
       return response.data;
     },
   });
@@ -68,9 +69,7 @@ export function NotificationsDropdown() {
       const token = localStorage.getItem('accessToken');
       if (!token) return { count: 0 };
 
-      const response = await axios.get(`${API_URL}/notifications/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get(`/notifications/unread-count`);
       return response.data;
     },
   });
@@ -81,15 +80,17 @@ export function NotificationsDropdown() {
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
       const token = localStorage.getItem('accessToken');
-      return axios.patch(
-        `${API_URL}/notifications/${notificationId}/read`,
+      return apiClient.patch(
+        `/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      queryClient.invalidateQueries({
+        queryKey: ['notifications-unread-count'],
+      });
     },
   });
 
@@ -97,15 +98,17 @@ export function NotificationsDropdown() {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       const token = localStorage.getItem('accessToken');
-      return axios.patch(
-        `${API_URL}/notifications/mark-all-read`,
+      return apiClient.patch(
+        `/notifications/mark-all-read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      queryClient.invalidateQueries({
+        queryKey: ['notifications-unread-count'],
+      });
     },
   });
 
@@ -177,41 +180,41 @@ export function NotificationsDropdown() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className='relative' ref={dropdownRef}>
       <Button
-        variant="ghost"
-        size="icon"
-        className="relative"
+        variant='ghost'
+        size='icon'
+        className='relative'
         onClick={() => setOpen(!open)}
       >
-        <Bell className="h-5 w-5" />
+        <Bell className='h-5 w-5' />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+          <span className='absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white'>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-96 max-h-[500px] overflow-y-auto bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="font-semibold text-lg">알림</h3>
+        <div className='absolute right-0 mt-2 w-96 max-h-[500px] overflow-y-auto bg-white rounded-lg shadow-lg border border-gray-200 z-50'>
+          <div className='flex items-center justify-between border-b px-4 py-3'>
+            <h3 className='font-semibold text-lg'>알림</h3>
             {unreadCount > 0 && (
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 onClick={handleMarkAllAsRead}
-                className="text-xs"
+                className='text-xs'
               >
-                <CheckCheck className="h-4 w-4 mr-1" />
+                <CheckCheck className='h-4 w-4 mr-1' />
                 모두 읽음
               </Button>
             )}
           </div>
 
-          <div className="divide-y">
+          <div className='divide-y'>
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-500">
+              <div className='px-4 py-8 text-center text-gray-500'>
                 알림이 없습니다
               </div>
             ) : (
@@ -224,35 +227,35 @@ export function NotificationsDropdown() {
                     !notification.isRead && 'bg-blue-50'
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className='flex items-start gap-3'>
                     <div
                       className={cn(
                         'flex-shrink-0 w-2 h-2 rounded-full mt-2',
                         notification.isRead ? 'bg-gray-300' : 'bg-blue-500'
                       )}
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-gray-900">
+                    <div className='flex-1 min-w-0'>
+                      <p className='font-medium text-sm text-gray-900'>
                         {notification.title}
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className='text-sm text-gray-600 mt-1'>
                         {notification.message}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className='text-xs text-gray-400 mt-1'>
                         {formatRelativeTime(notification.createdAt)}
                       </p>
                     </div>
                     {!notification.isRead && (
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        variant='ghost'
+                        size='sm'
                         onClick={(e) => {
                           e.stopPropagation();
                           markAsReadMutation.mutate(notification.id);
                         }}
-                        className="flex-shrink-0"
+                        className='flex-shrink-0'
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className='h-4 w-4' />
                       </Button>
                     )}
                   </div>
