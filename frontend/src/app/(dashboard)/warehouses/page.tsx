@@ -26,9 +26,10 @@ export default function WarehousesPage() {
   const deleteWarehouseMutation = useDeleteWarehouse();
   const { toast } = useToast();
 
-  const filteredWarehouses = warehouses?.filter((warehouse) =>
-    warehouse.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    warehouse.location.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredWarehouses = warehouses?.filter(
+    (warehouse) =>
+      warehouse.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      warehouse.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleDelete = async () => {
@@ -53,7 +54,7 @@ export default function WarehousesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--primary-default)]" />
       </div>
     );
   }
@@ -61,10 +62,10 @@ export default function WarehousesPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-destructive">Error loading warehouses</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Please try again later or contact support if the problem persists.
+        <div className="text-center space-y-[var(--space-2)]">
+          <p className="title-m text-[var(--semantic-error)]">창고 데이터를 불러올 수 없습니다</p>
+          <p className="body-s text-gray-700">
+            잠시 후 다시 시도하시거나 문제가 지속되면 고객 지원팀에 문의해주세요.
           </p>
         </div>
       </div>
@@ -72,29 +73,27 @@ export default function WarehousesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--space-6)]">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Warehouses</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your warehouse locations and inventory
-          </p>
+        <div className="space-y-[var(--space-2)]">
+          <h1 className="title-l text-gray-900">창고 관리</h1>
+          <p className="body-s text-gray-700">창고 위치 및 재고를 관리하세요</p>
         </div>
         <AddWarehouseModal />
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
         <Input
-          placeholder="Search warehouses by name or location..."
+          placeholder="창고명 또는 위치로 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 border-gray-400 bg-gray-100 rounded-[var(--radius-md)] body-m text-gray-900 placeholder:text-gray-600"
         />
       </div>
 
       {filteredWarehouses && filteredWarehouses.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-[var(--space-4)] md:grid-cols-2 lg:grid-cols-3">
           {filteredWarehouses.map((warehouse) => (
             <WarehouseCard
               key={warehouse.id}
@@ -104,11 +103,11 @@ export default function WarehousesPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground">
+        <div className="text-center py-12 space-y-[var(--space-2)]">
+          <p className="body-l text-gray-700">
             {searchQuery
-              ? 'No warehouses found matching your search'
-              : 'No warehouses yet. Create your first warehouse to get started.'}
+              ? '검색 결과가 없습니다'
+              : '아직 창고가 없습니다. 첫 번째 창고를 생성해보세요.'}
           </p>
         </div>
       )}
@@ -117,21 +116,23 @@ export default function WarehousesPage() {
         open={!!deleteWarehouse}
         onOpenChange={(open) => !open && setDeleteWarehouse(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="border-gray-400 bg-gray-100 rounded-[var(--radius-lg)]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Warehouse</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deleteWarehouse?.name}&quot;?
-              This action cannot be undone and will remove all associated inventory data.
+            <AlertDialogTitle className="title-m text-gray-900">창고 삭제</AlertDialogTitle>
+            <AlertDialogDescription className="body-m text-gray-700">
+              &quot;{deleteWarehouse?.name}&quot; 창고를 삭제하시겠습니까? 이 작업은 되돌릴 수
+              없으며 모든 관련 재고 데이터가 함께 삭제됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-gray-400 bg-gray-100 text-gray-900 hover:bg-gray-200 rounded-[var(--radius-md)] body-m">
+              취소
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-[var(--semantic-error)] text-gray-100 hover:bg-[var(--semantic-error)]/90 rounded-[var(--radius-md)] body-m"
             >
-              {deleteWarehouseMutation.isPending ? 'Deleting...' : 'Delete'}
+              {deleteWarehouseMutation.isPending ? '삭제 중...' : '삭제'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

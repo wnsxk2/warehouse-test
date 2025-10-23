@@ -51,18 +51,19 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--space-6)]">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Transaction History</h1>
-          <p className="text-muted-foreground">
-            View and track all inbound and outbound transactions
-          </p>
+        <div className="space-y-[var(--space-2)]">
+          <h1 className="title-l text-gray-900">거래 내역</h1>
+          <p className="body-s text-gray-700">모든 입출고 거래 내역을 확인하고 추적하세요</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-[var(--primary-default)] text-gray-100 hover:bg-[var(--primary-hover)] rounded-[var(--radius-md)] body-m font-semibold"
+        >
           <Plus className="mr-2 h-4 w-4" />
-          New Transaction
+          거래 등록
         </Button>
       </div>
 
@@ -71,22 +72,22 @@ export default function TransactionsPage() {
 
       {/* Transaction Table */}
       {isLoading && (
-        <div className="rounded-lg border p-8 text-center">
-          <p className="text-muted-foreground">Loading transactions...</p>
+        <div className="rounded-[var(--radius-md)] border border-gray-400 bg-gray-100 p-8 text-center">
+          <p className="body-m text-gray-600">거래 내역을 불러오는 중...</p>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-destructive p-8 text-center">
-          <p className="text-destructive">Failed to load transactions</p>
+        <div className="rounded-[var(--radius-md)] border border-[var(--semantic-error)] bg-[var(--semantic-error-light)] p-8 text-center">
+          <p className="body-m text-[var(--semantic-error)]">거래 내역을 불러오지 못했습니다</p>
         </div>
       )}
 
       {!isLoading && !error && transactions && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+            <p className="body-s text-gray-700">
+              {transactions.length}개의 거래 내역
             </p>
           </div>
 

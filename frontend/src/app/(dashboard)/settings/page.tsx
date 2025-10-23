@@ -12,38 +12,45 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--space-6)]">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences
-        </p>
+      <div className="space-y-[var(--space-2)]">
+        <h1 className="title-l text-gray-900">설정</h1>
+        <p className="body-s text-gray-700">계정 설정 및 환경설정을 관리하세요</p>
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-[var(--space-6)]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[400px] bg-gray-200 p-1 rounded-[var(--radius-md)]">
+          <TabsTrigger
+            value="profile"
+            className="flex items-center gap-2 body-m data-[state=active]:bg-gray-100 data-[state=active]:text-[var(--primary-default)] rounded-[var(--radius-sm)]"
+          >
             <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Profile</span>
+            <span className="hidden sm:inline">프로필</span>
           </TabsTrigger>
-          <TabsTrigger value="company" className="flex items-center gap-2">
+          <TabsTrigger
+            value="company"
+            className="flex items-center gap-2 body-m data-[state=active]:bg-gray-100 data-[state=active]:text-[var(--primary-default)] rounded-[var(--radius-sm)]"
+          >
             <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Company</span>
+            <span className="hidden sm:inline">회사</span>
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center gap-2">
+          <TabsTrigger
+            value="preferences"
+            className="flex items-center gap-2 body-m data-[state=active]:bg-gray-100 data-[state=active]:text-[var(--primary-default)] rounded-[var(--radius-sm)]"
+          >
             <SettingsIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Preferences</span>
+            <span className="hidden sm:inline">환경설정</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
-          <Card>
+        <TabsContent value="profile" className="space-y-[var(--space-6)]">
+          <Card className="border-gray-400 bg-gray-100 shadow-sm rounded-[var(--radius-md)]">
             <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>
-                Update your personal information and password
+              <CardTitle className="title-m text-gray-900">프로필 설정</CardTitle>
+              <CardDescription className="body-s text-gray-700">
+                개인 정보 및 비밀번호를 업데이트하세요
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -52,12 +59,12 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="company" className="space-y-6">
-          <Card>
+        <TabsContent value="company" className="space-y-[var(--space-6)]">
+          <Card className="border-gray-400 bg-gray-100 shadow-sm rounded-[var(--radius-md)]">
             <CardHeader>
-              <CardTitle>Company Settings</CardTitle>
-              <CardDescription>
-                Manage your company information
+              <CardTitle className="title-m text-gray-900">회사 설정</CardTitle>
+              <CardDescription className="body-s text-gray-700">
+                회사 정보를 관리하세요
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -66,12 +73,12 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="preferences" className="space-y-6">
-          <Card>
+        <TabsContent value="preferences" className="space-y-[var(--space-6)]">
+          <Card className="border-gray-400 bg-gray-100 shadow-sm rounded-[var(--radius-md)]">
             <CardHeader>
-              <CardTitle>Preferences</CardTitle>
-              <CardDescription>
-                Customize your application experience
+              <CardTitle className="title-m text-gray-900">환경설정</CardTitle>
+              <CardDescription className="body-s text-gray-700">
+                애플리케이션 사용 환경을 설정하세요
               </CardDescription>
             </CardHeader>
             <CardContent>
