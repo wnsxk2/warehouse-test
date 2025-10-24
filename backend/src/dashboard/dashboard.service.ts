@@ -68,17 +68,21 @@ export class DashboardService {
       take: 10,
       orderBy: { createdAt: 'desc' },
       include: {
-        warehouse: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        item: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
+        items: {
+          include: {
+            warehouse: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            item: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+              },
+            },
           },
         },
         user: {
@@ -90,15 +94,21 @@ export class DashboardService {
       },
     });
 
-    return transactions.map((t) => ({
-      id: t.id,
-      type: t.type,
-      quantity: Number(t.quantity),
-      notes: t.notes || undefined,
-      createdAt: t.createdAt,
-      warehouse: t.warehouse,
-      item: t.item,
-      user: t.user,
-    }));
+    // For dashboard, show only the first item for multi-item transactions
+    return transactions
+      .filter((t) => t.items.length > 0)
+      .map((t) => {
+        const firstItem = t.items[0];
+        return {
+          id: t.id,
+          type: t.type,
+          quantity: Number(firstItem.quantity),
+          notes: t.notes || undefined,
+          createdAt: t.createdAt,
+          warehouse: firstItem.warehouse,
+          item: firstItem.item,
+          user: t.user,
+        };
+      });
   }
 }

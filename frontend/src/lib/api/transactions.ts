@@ -1,24 +1,29 @@
 import apiClient from './client';
 
-export interface Transaction {
+export interface TransactionItem {
   id: string;
-  type: 'INBOUND' | 'OUTBOUND';
   warehouseId: string;
   itemId: string;
   quantity: number;
-  notes?: string;
-  createdAt: string;
-  warehouse?: {
+  warehouse: {
     id: string;
     name: string;
     location: string;
   };
-  item?: {
+  item: {
     id: string;
     sku: string;
     name: string;
     unitOfMeasure: string;
   };
+}
+
+export interface Transaction {
+  id: string;
+  type: 'INBOUND' | 'OUTBOUND';
+  notes?: string;
+  createdAt: string;
+  items: TransactionItem[];
   user?: {
     id: string;
     name: string;
@@ -61,9 +66,11 @@ export const transactionsApi = {
 
   create: async (data: {
     type: 'INBOUND' | 'OUTBOUND';
-    warehouseId: string;
-    itemId: string;
-    quantity: number;
+    items: Array<{
+      warehouseId: string;
+      itemId: string;
+      quantity: number;
+    }>;
     notes?: string;
   }): Promise<Transaction> => {
     const response = await apiClient.post('/transactions', data);

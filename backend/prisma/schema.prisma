@@ -99,10 +99,10 @@ model Warehouse {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  company      Company          @relation(fields: [companyId], references: [id])
-  inventory    Inventory[]
-  transactions Transaction[]
-  history      WarehouseHistory[]
+  company          Company            @relation(fields: [companyId], references: [id])
+  inventory        Inventory[]
+  transactionItems TransactionItem[]
+  history          WarehouseHistory[]
 
   @@index([companyId])
   @@map("warehouses")
@@ -120,10 +120,10 @@ model Item {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  company      Company       @relation(fields: [companyId], references: [id])
-  inventory    Inventory[]
-  transactions Transaction[]
-  history      ItemHistory[]
+  company          Company            @relation(fields: [companyId], references: [id])
+  inventory        Inventory[]
+  transactionItems TransactionItem[]
+  history          ItemHistory[]
 
   @@index([companyId])
   @@index([companyId, category])
@@ -148,27 +148,38 @@ model Inventory {
 }
 
 model Transaction {
-  id          String          @id @default(uuid())
-  type        TransactionType
-  warehouseId String
-  itemId      String
-  quantity    Decimal         @db.Decimal(10, 2)
-  notes       String?         @db.Text
-  createdBy   String
-  companyId   String
-  createdAt   DateTime        @default(now())
+  id        String          @id @default(uuid())
+  type      TransactionType
+  notes     String?         @db.Text
+  createdBy String
+  companyId String
+  createdAt DateTime        @default(now())
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  item      Item      @relation(fields: [itemId], references: [id])
-  user      User      @relation(fields: [createdBy], references: [id])
-  company   Company   @relation(fields: [companyId], references: [id])
+  user  User              @relation(fields: [createdBy], references: [id])
+  company Company         @relation(fields: [companyId], references: [id])
+  items TransactionItem[]
 
   @@index([companyId])
   @@index([companyId, type])
   @@index([companyId, createdAt(sort: Desc)])
-  @@index([warehouseId, createdAt(sort: Desc)])
-  @@index([itemId, createdAt(sort: Desc)])
   @@map("transactions")
+}
+
+model TransactionItem {
+  id            String   @id @default(uuid())
+  transactionId String
+  warehouseId   String
+  itemId        String
+  quantity      Decimal  @db.Decimal(10, 2)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  warehouse   Warehouse   @relation(fields: [warehouseId], references: [id])
+  item        Item        @relation(fields: [itemId], references: [id])
+
+  @@index([transactionId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@map("transaction_items")
 }
 
 enum TransactionType {

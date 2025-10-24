@@ -8,6 +8,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { Transaction } from '@/lib/api/transactions';
 import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
 
@@ -25,13 +33,12 @@ export function TransactionDetailModal({
   if (!transaction) return null;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
+    return new Date(dateString).toLocaleString('ko-KR', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
     });
   };
 
@@ -47,65 +54,76 @@ export function TransactionDetailModal({
       return (
         <Badge variant="default" className="flex w-fit items-center gap-1">
           {getTypeIcon(type)}
-          Inbound
+          입고
         </Badge>
       );
     }
     return (
       <Badge variant="secondary" className="flex w-fit items-center gap-1">
         {getTypeIcon(type)}
-        Outbound
+        출고
       </Badge>
     );
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Transaction Details</DialogTitle>
-          <DialogDescription>View detailed information about this transaction</DialogDescription>
+          <DialogTitle>거래 상세 정보</DialogTitle>
+          <DialogDescription>거래 내역의 상세 정보를 확인하세요</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Transaction Type */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Transaction Type</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">거래 유형</h4>
             {getTypeBadge(transaction.type)}
           </div>
 
-          {/* Warehouse Information */}
+          {/* Transaction Items */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Warehouse</h4>
-            <div className="rounded-lg border p-3">
-              <p className="font-medium">{transaction.warehouse?.name}</p>
-              <p className="text-sm text-muted-foreground">{transaction.warehouse?.location}</p>
+            <h4 className="text-sm font-medium text-muted-foreground">
+              거래 항목 ({transaction.items.length}개)
+            </h4>
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>창고</TableHead>
+                    <TableHead>아이템</TableHead>
+                    <TableHead className="text-right">수량</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transaction.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.warehouse.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.warehouse.location}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.item.name}</p>
+                          <p className="text-sm text-muted-foreground">SKU: {item.item.sku}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {item.quantity} {item.item.unitOfMeasure}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </div>
-
-          {/* Item Information */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Item</h4>
-            <div className="rounded-lg border p-3">
-              <p className="font-medium">{transaction.item?.name}</p>
-              <p className="text-sm text-muted-foreground">
-                SKU: {transaction.item?.sku} | Unit: {transaction.item?.unitOfMeasure}
-              </p>
-            </div>
-          </div>
-
-          {/* Quantity */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Quantity</h4>
-            <p className="text-2xl font-bold">
-              {transaction.quantity} {transaction.item?.unitOfMeasure}
-            </p>
           </div>
 
           {/* Notes */}
           {transaction.notes && (
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
+              <h4 className="text-sm font-medium text-muted-foreground">비고</h4>
               <div className="rounded-lg border p-3">
                 <p className="text-sm">{transaction.notes}</p>
               </div>
@@ -114,7 +132,7 @@ export function TransactionDetailModal({
 
           {/* Created By */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Created By</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">등록자</h4>
             <div className="rounded-lg border p-3">
               <p className="font-medium">{transaction.user?.name}</p>
               <p className="text-sm text-muted-foreground">{transaction.user?.email}</p>
@@ -123,7 +141,7 @@ export function TransactionDetailModal({
 
           {/* Timestamp */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Date & Time</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">거래 일시</h4>
             <p className="text-sm">{formatDate(transaction.createdAt)}</p>
           </div>
         </div>

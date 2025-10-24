@@ -205,49 +205,114 @@ async function main() {
     throw new Error('Admin user not created properly');
   }
 
-  await prisma.transaction.createMany({
-    data: [
-      {
-        type: 'INBOUND',
-        warehouseId: mainWarehouse.id,
-        itemId: items[0].id,
-        quantity: 150,
-        notes: 'Initial stock',
-        createdBy: adminUser.id,
-        companyId: company.id,
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+  // Create transactions with nested items
+  // Single-item transaction example
+  await prisma.transaction.create({
+    data: {
+      type: 'INBOUND',
+      notes: 'Initial stock - Widget A',
+      createdBy: adminUser.id,
+      companyId: company.id,
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      items: {
+        create: {
+          warehouseId: mainWarehouse.id,
+          itemId: items[0].id,
+          quantity: 150,
+        },
       },
-      {
-        type: 'INBOUND',
-        warehouseId: mainWarehouse.id,
-        itemId: items[1].id,
-        quantity: 200,
-        notes: 'Initial stock',
-        createdBy: adminUser.id,
-        companyId: company.id,
-        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+    },
+  });
+
+  // Single-item transaction example
+  await prisma.transaction.create({
+    data: {
+      type: 'INBOUND',
+      notes: 'Initial stock - Component B',
+      createdBy: adminUser.id,
+      companyId: company.id,
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      items: {
+        create: {
+          warehouseId: mainWarehouse.id,
+          itemId: items[1].id,
+          quantity: 200,
+        },
       },
-      {
-        type: 'INBOUND',
-        warehouseId: secondaryWarehouse.id,
-        itemId: items[2].id,
-        quantity: 100,
-        notes: 'Initial stock',
-        createdBy: adminUser.id,
-        companyId: company.id,
-        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    },
+  });
+
+  // Multi-item transaction example - receiving multiple items at once
+  await prisma.transaction.create({
+    data: {
+      type: 'INBOUND',
+      notes: 'Bulk delivery from supplier',
+      createdBy: adminUser.id,
+      companyId: company.id,
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      items: {
+        create: [
+          {
+            warehouseId: mainWarehouse.id,
+            itemId: items[0].id,
+            quantity: 50,
+          },
+          {
+            warehouseId: mainWarehouse.id,
+            itemId: items[1].id,
+            quantity: 100,
+          },
+          {
+            warehouseId: secondaryWarehouse.id,
+            itemId: items[2].id,
+            quantity: 100,
+          },
+        ],
       },
-      {
-        type: 'OUTBOUND',
-        warehouseId: secondaryWarehouse.id,
-        itemId: items[2].id,
-        quantity: 25,
-        notes: 'Shipped to customer',
-        createdBy: adminUser.id,
-        companyId: company.id,
-        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+    },
+  });
+
+  // Single-item transaction example
+  await prisma.transaction.create({
+    data: {
+      type: 'OUTBOUND',
+      notes: 'Shipped to customer',
+      createdBy: adminUser.id,
+      companyId: company.id,
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      items: {
+        create: {
+          warehouseId: secondaryWarehouse.id,
+          itemId: items[2].id,
+          quantity: 25,
+        },
       },
-    ],
+    },
+  });
+
+  // Multi-item transaction example - shipping multiple items to different locations
+  await prisma.transaction.create({
+    data: {
+      type: 'OUTBOUND',
+      notes: 'Multiple orders fulfilled',
+      createdBy: adminUser.id,
+      companyId: company.id,
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      items: {
+        create: [
+          {
+            warehouseId: mainWarehouse.id,
+            itemId: items[0].id,
+            quantity: 20,
+          },
+          {
+            warehouseId: mainWarehouse.id,
+            itemId: items[1].id,
+            quantity: 30,
+          },
+        ],
+      },
+    },
   });
 
   console.log('Created sample transactions');

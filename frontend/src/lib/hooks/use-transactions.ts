@@ -23,21 +23,23 @@ export function useCreateTransaction() {
 
   return useMutation({
     mutationFn: transactionsApi.create,
-    onSuccess: () => {
+    onSuccess: (transaction) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+      const itemCount = transaction.items.length;
       toast({
-        title: 'Success',
-        description: 'Transaction created successfully',
+        title: '성공',
+        description: `${itemCount}개 아이템의 거래가 등록되었습니다`,
       });
     },
     onError: (error) => {
       const err = error as { response?: { data?: { message?: string } } };
       toast({
-        title: 'Error',
-        description: err.response?.data?.message || 'Failed to create transaction',
+        title: '오류',
+        description: err.response?.data?.message || '거래 등록에 실패했습니다',
         variant: 'destructive',
       });
     },
