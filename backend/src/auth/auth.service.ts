@@ -1,10 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -319,5 +320,51 @@ export class AuthService {
       updatedAt: user.updatedAt,
       company: user.company,
     };
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+    // Find user's account
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        account: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.account.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 12);
+
+    // Update password
+    await this.prisma.account.update({
+      where: { id: user.accountId },
+      data: { password: hashedPassword },
+    });
+
+    // Revoke all refresh tokens to force re-login
+    await this.prisma.refreshToken.updateMany({
+      where: {
+        accountId: user.accountId,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+      },
+    });
+
+    return { message: 'Password changed successfully' };
   }
 }

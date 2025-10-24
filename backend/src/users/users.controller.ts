@@ -38,6 +38,13 @@ export class UsersController {
     return this.usersService.findAll(filterCompanyId);
   }
 
+  @Patch('me')
+  updateProfile(@GetUser() user: any, @Body() updateUserDto: UpdateUserDto) {
+    // Only allow updating name, not role or company
+    const { name } = updateUserDto;
+    return this.usersService.update(user.id, { name });
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);

@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Building2, Settings as SettingsIcon } from 'lucide-react';
+import { User, Settings as SettingsIcon } from 'lucide-react';
 import { ProfileSettings } from '@/components/features/settings/profile-settings';
-import { CompanySettings } from '@/components/features/settings/company-settings';
 import { PreferencesSettings } from '@/components/features/settings/preferences-settings';
 
 export default function SettingsPage() {
@@ -21,20 +20,13 @@ export default function SettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-[var(--space-6)]">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px] bg-gray-200 p-1 rounded-[var(--radius-md)]">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[300px] bg-gray-200 p-1 rounded-[var(--radius-md)]">
           <TabsTrigger
             value="profile"
             className="flex items-center gap-2 body-m data-[state=active]:bg-gray-100 data-[state=active]:text-[var(--primary-default)] rounded-[var(--radius-sm)]"
           >
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">프로필</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="company"
-            className="flex items-center gap-2 body-m data-[state=active]:bg-gray-100 data-[state=active]:text-[var(--primary-default)] rounded-[var(--radius-sm)]"
-          >
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">회사</span>
           </TabsTrigger>
           <TabsTrigger
             value="preferences"
@@ -55,20 +47,6 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <ProfileSettings />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="company" className="space-y-[var(--space-6)]">
-          <Card className="border-gray-400 bg-gray-100 shadow-sm rounded-[var(--radius-md)]">
-            <CardHeader>
-              <CardTitle className="title-m text-gray-900">회사 설정</CardTitle>
-              <CardDescription className="body-s text-gray-700">
-                회사 정보를 관리하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CompanySettings />
             </CardContent>
           </Card>
         </TabsContent>
