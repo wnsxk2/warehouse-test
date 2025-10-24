@@ -41,6 +41,12 @@ export class NotificationsController {
     return this.notificationsService.findAllForUser(req.user.id);
   }
 
+  @Get('all')
+  @HttpCode(HttpStatus.OK)
+  async findAllIncludingRead(@Request() req: any) {
+    return this.notificationsService.findAllIncludingRead(req.user.id);
+  }
+
   @Get('unread-count')
   @HttpCode(HttpStatus.OK)
   async getUnreadCount(@Request() req: any) {

@@ -168,6 +168,51 @@ export class NotificationsService {
   }
 
   /**
+   * Get all notifications (both read and unread) for a user
+   */
+  async findAllIncludingRead(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true },
+    });
+
+    if (!user || !user.companyId) {
+      return [];
+    }
+
+    // Get all notifications for the user or all users in the company
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        companyId: user.companyId,
+        OR: [{ userId: userId }, { userId: null }],
+      },
+      include: {
+        notificationRead: {
+          where: { userId: userId },
+          select: { readAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Increased limit for full list page
+    });
+
+    // Transform to include isRead status
+    return notifications.map((notification) => ({
+      id: notification.id,
+      companyId: notification.companyId,
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      relatedId: notification.relatedId,
+      isRead: notification.notificationRead.length > 0,
+      readAt: notification.notificationRead[0]?.readAt || null,
+      createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
+    }));
+  }
+
+  /**
    * Get unread notifications count
    */
   async getUnreadCount(userId: string) {

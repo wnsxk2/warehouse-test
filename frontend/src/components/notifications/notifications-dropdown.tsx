@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -262,6 +263,17 @@ export function NotificationsDropdown() {
                 </div>
               ))
             )}
+          </div>
+
+          {/* View All Link */}
+          <div className='border-t px-4 py-3'>
+            <Link
+              href='/notifications'
+              onClick={() => setOpen(false)}
+              className='block text-center text-sm text-blue-600 hover:text-blue-700 font-medium'
+            >
+              모든 알림 보기
+            </Link>
           </div>
         </div>
       )}
