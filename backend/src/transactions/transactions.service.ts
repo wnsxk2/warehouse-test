@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { TransferInventoryDto } from './dto/transfer-inventory.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -359,5 +360,193 @@ export class TransactionsService {
         email: transaction.user.account.email,
       },
     };
+  }
+
+  async transfer(transferDto: TransferInventoryDto, userId: string, companyId: string) {
+    const { fromWarehouseId, toWarehouseId, itemId, quantity, notes } = transferDto;
+
+    // Validate that source and destination are different
+    if (fromWarehouseId === toWarehouseId) {
+      throw new BadRequestException('출발 창고와 도착 창고가 같을 수 없습니다.');
+    }
+
+    // Use database transaction to ensure atomicity
+    return this.prisma
+      .$transaction(async (tx) => {
+        // Verify both warehouses exist and belong to company
+        const fromWarehouse = await tx.warehouse.findFirst({
+          where: { id: fromWarehouseId, companyId },
+        });
+
+        if (!fromWarehouse) {
+          throw new NotFoundException(`출발 창고를 찾을 수 없습니다: ${fromWarehouseId}`);
+        }
+
+        const toWarehouse = await tx.warehouse.findFirst({
+          where: { id: toWarehouseId, companyId },
+        });
+
+        if (!toWarehouse) {
+          throw new NotFoundException(`도착 창고를 찾을 수 없습니다: ${toWarehouseId}`);
+        }
+
+        // Verify item exists and belongs to company
+        const item = await tx.item.findFirst({
+          where: { id: itemId, companyId },
+        });
+
+        if (!item) {
+          throw new NotFoundException(`아이템을 찾을 수 없습니다: ${itemId}`);
+        }
+
+        // Check inventory availability in source warehouse
+        const fromInventory = await tx.inventory.findFirst({
+          where: { warehouseId: fromWarehouseId, itemId },
+        });
+
+        if (!fromInventory) {
+          throw new BadRequestException(
+            `${fromWarehouse.name}에 ${item.name}의 재고가 없습니다.`,
+          );
+        }
+
+        const currentQuantity = Number(fromInventory.quantity);
+
+        if (currentQuantity < quantity) {
+          throw new BadRequestException(
+            `${fromWarehouse.name}에 ${item.name}의 재고가 부족합니다. 현재 재고: ${currentQuantity}, 요청 수량: ${quantity}`,
+          );
+        }
+
+        // Update source warehouse inventory (decrement)
+        await tx.inventory.update({
+          where: { id: fromInventory.id },
+          data: {
+            quantity: currentQuantity - quantity,
+          },
+        });
+
+        // Find or create destination warehouse inventory
+        let toInventory = await tx.inventory.findFirst({
+          where: { warehouseId: toWarehouseId, itemId },
+        });
+
+        if (toInventory) {
+          // Update existing inventory (increment)
+          const toCurrentQuantity = Number(toInventory.quantity);
+          await tx.inventory.update({
+            where: { id: toInventory.id },
+            data: {
+              quantity: toCurrentQuantity + quantity,
+              lastRestockedAt: new Date(),
+            },
+          });
+        } else {
+          // Create new inventory record
+          toInventory = await tx.inventory.create({
+            data: {
+              warehouseId: toWarehouseId,
+              itemId,
+              quantity,
+              lastRestockedAt: new Date(),
+            },
+          });
+        }
+
+        // Check destination warehouse capacity
+        const totalInventoryQuantity = await tx.inventory.aggregate({
+          where: { warehouseId: toWarehouseId },
+          _sum: { quantity: true },
+        });
+
+        const totalQuantity = Number(totalInventoryQuantity._sum.quantity || 0);
+        const warehouseCapacity = Number(toWarehouse.capacity);
+
+        if (totalQuantity > warehouseCapacity) {
+          throw new BadRequestException(
+            `${toWarehouse.name}의 용량을 초과했습니다. 창고 용량: ${warehouseCapacity}, 현재 총 재고: ${totalQuantity}`,
+          );
+        }
+
+        // Create TRANSFER transaction with two items (negative and positive quantities)
+        const transaction = await tx.transaction.create({
+          data: {
+            type: 'TRANSFER',
+            notes,
+            createdBy: userId,
+            companyId,
+            items: {
+              create: [
+                {
+                  warehouseId: fromWarehouseId,
+                  itemId,
+                  quantity: -quantity, // Negative for source
+                },
+                {
+                  warehouseId: toWarehouseId,
+                  itemId,
+                  quantity, // Positive for destination
+                },
+              ],
+            },
+          },
+          include: {
+            items: {
+              include: {
+                warehouse: {
+                  select: {
+                    id: true,
+                    name: true,
+                    location: true,
+                  },
+                },
+                item: {
+                  select: {
+                    id: true,
+                    sku: true,
+                    name: true,
+                    unitOfMeasure: true,
+                  },
+                },
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                account: {
+                  select: {
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return { transaction, fromWarehouse, toWarehouse, item };
+      })
+      .then(async ({ transaction, fromWarehouse, toWarehouse, item }) => {
+        // Create notification after transaction completes
+        const message = `${item.name} ${quantity}${item.unitOfMeasure}이(가) ${fromWarehouse.name}에서 ${toWarehouse.name}로 이동되었습니다.`;
+
+        await this.notificationsService.createForCompany(
+          companyId,
+          'TRANSACTION_CREATED',
+          '재고 이동',
+          message,
+          transaction.id,
+          userId,
+        );
+
+        return {
+          ...transaction,
+          user: {
+            id: transaction.user.id,
+            name: transaction.user.name,
+            email: transaction.user.account.email,
+          },
+        };
+      });
   }
 }

@@ -185,6 +185,7 @@ model TransactionItem {
 enum TransactionType {
   INBOUND
   OUTBOUND
+  TRANSFER
 }
 
 model InviteCode {

@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Transaction } from '@/lib/api/transactions';
-import { ArrowDownIcon, ArrowUpIcon, Eye, Package } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, ArrowLeftRight, Eye, Package } from 'lucide-react';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -29,19 +29,30 @@ export function TransactionTable({ transactions, onViewDetails }: TransactionTab
     });
   };
 
-  const getTypeIcon = (type: 'INBOUND' | 'OUTBOUND') => {
+  const getTypeIcon = (type: 'INBOUND' | 'OUTBOUND' | 'TRANSFER') => {
     if (type === 'INBOUND') {
       return <ArrowDownIcon className="h-4 w-4" />;
+    }
+    if (type === 'TRANSFER') {
+      return <ArrowLeftRight className="h-4 w-4" />;
     }
     return <ArrowUpIcon className="h-4 w-4" />;
   };
 
-  const getTypeBadge = (type: 'INBOUND' | 'OUTBOUND') => {
+  const getTypeBadge = (type: 'INBOUND' | 'OUTBOUND' | 'TRANSFER') => {
     if (type === 'INBOUND') {
       return (
         <Badge variant="default" className="flex items-center gap-1">
           {getTypeIcon(type)}
           입고
+        </Badge>
+      );
+    }
+    if (type === 'TRANSFER') {
+      return (
+        <Badge variant="outline" className="flex items-center gap-1 border-blue-500 text-blue-700">
+          {getTypeIcon(type)}
+          이동
         </Badge>
       );
     }

@@ -20,7 +20,7 @@ export interface TransactionItem {
 
 export interface Transaction {
   id: string;
-  type: 'INBOUND' | 'OUTBOUND';
+  type: 'INBOUND' | 'OUTBOUND' | 'TRANSFER';
   notes?: string;
   createdAt: string;
   items: TransactionItem[];
@@ -32,13 +32,21 @@ export interface Transaction {
 }
 
 export interface TransactionFilters {
-  type?: 'INBOUND' | 'OUTBOUND';
+  type?: 'INBOUND' | 'OUTBOUND' | 'TRANSFER';
   warehouseId?: string;
   itemId?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
   limit?: number;
+}
+
+export interface TransferInventoryRequest {
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  itemId: string;
+  quantity: number;
+  notes?: string;
 }
 
 export const transactionsApi = {
@@ -74,6 +82,11 @@ export const transactionsApi = {
     notes?: string;
   }): Promise<Transaction> => {
     const response = await apiClient.post('/transactions', data);
+    return response.data;
+  },
+
+  transfer: async (data: TransferInventoryRequest): Promise<Transaction> => {
+    const response = await apiClient.post('/transactions/transfer', data);
     return response.data;
   },
 };

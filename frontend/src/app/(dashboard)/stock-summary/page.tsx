@@ -11,13 +11,43 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Package, TrendingDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Package, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TransferInventoryModal } from '@/components/features/transaction/transfer-inventory-modal';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { transactionsApi, TransferInventoryRequest } from '@/lib/api/transactions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function StockSummaryPage() {
   const { data: stockSummary, isLoading } = useStockSummary();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const transferMutation = useMutation({
+    mutationFn: (data: TransferInventoryRequest) => transactionsApi.transfer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stockSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+      setIsTransferModalOpen(false);
+      toast({
+        title: '성공',
+        description: '재고가 성공적으로 이동되었습니다.',
+      });
+    },
+    onError: (error: unknown) => {
+      const errorResponse = error as { response?: { data?: { message?: string } } };
+      const message = errorResponse?.response?.data?.message || '재고 이동에 실패했습니다.';
+      toast({
+        title: '오류',
+        description: message,
+        variant: 'destructive',
+      });
+    },
+  });
 
   const toggleRow = (itemId: string) => {
     setExpandedRows((prev) => {
@@ -38,9 +68,15 @@ export default function StockSummaryPage() {
   return (
     <div className="space-y-[var(--space-6)]">
       {/* 페이지 헤더 */}
-      <div className="space-y-[var(--space-2)]">
-        <h1 className="title-l text-gray-900">재고 현황</h1>
-        <p className="body-s text-gray-700">아이템별 총 재고량 및 창고별 분포를 확인하세요</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-[var(--space-2)]">
+          <h1 className="title-l text-gray-900">재고 현황</h1>
+          <p className="body-s text-gray-700">아이템별 총 재고량 및 창고별 분포를 확인하세요</p>
+        </div>
+        <Button onClick={() => setIsTransferModalOpen(true)}>
+          <ArrowLeftRight className="mr-2 h-4 w-4" />
+          재고 이동
+        </Button>
       </div>
 
       {/* 요약 카드 */}
@@ -204,6 +240,13 @@ export default function StockSummaryPage() {
           </Table>
         </div>
       )}
+
+      {/* 재고 이동 모달 */}
+      <TransferInventoryModal
+        open={isTransferModalOpen}
+        onOpenChange={setIsTransferModalOpen}
+        onSubmit={(values) => transferMutation.mutate(values)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { TransferInventoryDto } from './dto/transfer-inventory.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../common/decorators/get-user.decorator';
 
@@ -12,6 +13,11 @@ export class TransactionsController {
   @Post()
   create(@Body() createTransactionDto: CreateTransactionDto, @GetUser() user: any) {
     return this.transactionsService.create(createTransactionDto, user.id, user.companyId);
+  }
+
+  @Post('transfer')
+  transfer(@Body() transferInventoryDto: TransferInventoryDto, @GetUser() user: any) {
+    return this.transactionsService.transfer(transferInventoryDto, user.id, user.companyId);
   }
 
   @Get()
