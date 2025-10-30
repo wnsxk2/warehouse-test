@@ -60,6 +60,8 @@ describe('Inventory (e2e)', () => {
         category: 'Electronics',
         unitOfMeasure: 'pcs',
         companyId: user!.companyId!,
+        purchasePriceCurrencyId: 1,
+        salePriceCurrencyId: 1,
       },
     });
     itemId = item.id;

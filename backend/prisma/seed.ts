@@ -19,7 +19,20 @@ async function main() {
   await prisma.company.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.account.deleteMany();
+  await prisma.currency.deleteMany();
   console.log('Cleaned existing data');
+
+  // Create currencies
+  const currencies = await prisma.$transaction([
+    prisma.currency.create({ data: { code: 'KRW', name: 'South Korean Won', symbol: '₩' } }),
+    prisma.currency.create({ data: { code: 'USD', name: 'US Dollar', symbol: '$' } }),
+    prisma.currency.create({ data: { code: 'EUR', name: 'Euro', symbol: '€' } }),
+    prisma.currency.create({ data: { code: 'JPY', name: 'Japanese Yen', symbol: '¥' } }),
+    prisma.currency.create({ data: { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' } }),
+    prisma.currency.create({ data: { code: 'GBP', name: 'British Pound', symbol: '£' } }),
+  ]);
+
+  console.log('Created currencies:', currencies.length);
 
   // Create super admin account and user (no company association)
   const superAdminAccount = await prisma.account.create({
@@ -135,6 +148,10 @@ async function main() {
   console.log('Created warehouses');
 
   // Create items
+  // Currency IDs are auto-incremented: KRW=1, USD=2, EUR=3, JPY=4, CNY=5, GBP=6
+  const krwCurrencyId = currencies.find(c => c.code === 'KRW')!.id;
+  const usdCurrencyId = currencies.find(c => c.code === 'USD')!.id;
+
   const items = await prisma.$transaction([
     prisma.item.create({
       data: {
@@ -143,6 +160,10 @@ async function main() {
         unitOfMeasure: 'EA',
         category: 'Parts',
         description: 'Standard widget for assembly',
+        purchasePrice: 10000,
+        purchasePriceCurrencyId: krwCurrencyId,
+        salePrice: 15000,
+        salePriceCurrencyId: krwCurrencyId,
         reorderThreshold: 50,
         companyId: company.id,
       },
@@ -154,6 +175,10 @@ async function main() {
         unitOfMeasure: 'KG',
         category: 'Raw Materials',
         description: 'High-grade component material',
+        purchasePrice: 50,
+        purchasePriceCurrencyId: usdCurrencyId,
+        salePrice: 75,
+        salePriceCurrencyId: usdCurrencyId,
         reorderThreshold: 100,
         companyId: company.id,
       },
@@ -165,6 +190,10 @@ async function main() {
         unitOfMeasure: 'EA',
         category: 'Finished Goods',
         description: 'Finished product ready for shipment',
+        purchasePrice: 100000,
+        purchasePriceCurrencyId: krwCurrencyId,
+        salePrice: 150000,
+        salePriceCurrencyId: krwCurrencyId,
         reorderThreshold: 20,
         companyId: company.id,
       },

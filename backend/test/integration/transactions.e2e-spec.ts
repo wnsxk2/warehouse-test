@@ -81,6 +81,8 @@ describe('TransactionsController (e2e)', () => {
         description: 'Test item for transactions',
         reorderThreshold: 10,
         companyId,
+        purchasePriceCurrencyId: 1,
+        salePriceCurrencyId: 1,
       },
     });
 

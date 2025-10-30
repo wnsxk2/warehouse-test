@@ -6,6 +6,14 @@ export const itemSchema = z.object({
   category: z.string().min(1, 'Category is required').max(50, 'Category must be at most 50 characters'),
   unitOfMeasure: z.string().min(1, 'Unit of measure is required').max(20, 'Unit of measure must be at most 20 characters'),
   description: z.string().max(500, 'Description must be at most 500 characters').optional(),
+  purchasePrice: z
+    .number({ message: 'Purchase price must be a number' })
+    .min(0, 'Purchase price must be at least 0'),
+  purchasePriceCurrencyId: z.number().int().min(1, 'Purchase price currency is required'),
+  salePrice: z
+    .number({ message: 'Sale price must be a number' })
+    .min(0, 'Sale price must be at least 0'),
+  salePriceCurrencyId: z.number().int().min(1, 'Sale price currency is required'),
   reorderThreshold: z
     .number({ message: 'Reorder threshold must be a number' })
     .int('Reorder threshold must be an integer')

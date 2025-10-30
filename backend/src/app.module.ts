@@ -12,6 +12,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { CompaniesModule } from './companies/companies.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CurrenciesModule } from './currencies/currencies.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     CompaniesModule,
     UsersModule,
     NotificationsModule,
+    CurrenciesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

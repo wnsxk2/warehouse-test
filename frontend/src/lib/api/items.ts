@@ -7,6 +7,10 @@ export interface Item {
   category: string;
   unitOfMeasure: string;
   description?: string;
+  purchasePrice: number;
+  purchasePriceCurrencyId: number;
+  salePrice: number;
+  salePriceCurrencyId: number;
   reorderThreshold: number;
   companyId?: string;
   deletedAt?: Date | null;
@@ -67,6 +71,10 @@ export const itemsApi = {
     category: string;
     unitOfMeasure: string;
     description?: string;
+    purchasePrice: number;
+    purchasePriceCurrencyId: number;
+    salePrice: number;
+    salePriceCurrencyId: number;
     reorderThreshold: number;
   }): Promise<Item> => {
     const response = await apiClient.post('/items', data);
@@ -81,6 +89,10 @@ export const itemsApi = {
       category?: string;
       unitOfMeasure?: string;
       description?: string;
+      purchasePrice?: number;
+      purchasePriceCurrencyId?: number;
+      salePrice?: number;
+      salePriceCurrencyId?: number;
       reorderThreshold?: number;
     }
   ): Promise<Item> => {

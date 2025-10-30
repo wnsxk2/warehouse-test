@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { itemSchema, type ItemFormData } from '@/lib/validations/item';
 import { useCreateItem, useUpdateItem } from '@/lib/hooks/use-items';
+import { useCurrencies } from '@/lib/hooks/use-currencies';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Form,
@@ -16,6 +17,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Item } from '@/lib/api/items';
 import { useEffect } from 'react';
 
@@ -29,6 +37,10 @@ export function RegisterItemModal({ open, onClose, item }: RegisterItemModalProp
   const isEditMode = !!item;
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
+  const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
+
+  // Get default currency ID (KRW), fallback to 1 if not found
+  const defaultCurrencyId = currencies?.find(c => c.code === 'KRW')?.id ?? 1;
 
   const form = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -38,6 +50,10 @@ export function RegisterItemModal({ open, onClose, item }: RegisterItemModalProp
       category: '',
       unitOfMeasure: '',
       description: '',
+      purchasePrice: 0,
+      purchasePriceCurrencyId: defaultCurrencyId,
+      salePrice: 0,
+      salePriceCurrencyId: defaultCurrencyId,
       reorderThreshold: 0,
     },
   });
@@ -52,6 +68,10 @@ export function RegisterItemModal({ open, onClose, item }: RegisterItemModalProp
           category: item.category,
           unitOfMeasure: item.unitOfMeasure,
           description: item.description || '',
+          purchasePrice: item.purchasePrice,
+          purchasePriceCurrencyId: item.purchasePriceCurrencyId,
+          salePrice: item.salePrice,
+          salePriceCurrencyId: item.salePriceCurrencyId,
           reorderThreshold: item.reorderThreshold,
         });
       } else {
@@ -61,11 +81,15 @@ export function RegisterItemModal({ open, onClose, item }: RegisterItemModalProp
           category: '',
           unitOfMeasure: '',
           description: '',
+          purchasePrice: 0,
+          purchasePriceCurrencyId: defaultCurrencyId,
+          salePrice: 0,
+          salePriceCurrencyId: defaultCurrencyId,
           reorderThreshold: 0,
         });
       }
     }
-  }, [open, item, form]);
+  }, [open, item, form, defaultCurrencyId]);
 
   const onSubmit = async (data: ItemFormData) => {
     try {
@@ -147,6 +171,102 @@ export function RegisterItemModal({ open, onClose, item }: RegisterItemModalProp
                     <FormControl>
                       <Input {...field} placeholder="EA, KG, L" />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="purchasePrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Purchase Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="purchasePriceCurrencyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Purchase Price Currency</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                      value={String(field.value)}
+                      disabled={currenciesLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencies?.map((currency) => (
+                          <SelectItem key={currency.id} value={String(currency.id)}>
+                            {currency.code} - {currency.name} {currency.symbol && `(${currency.symbol})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="salePrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sale Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="salePriceCurrencyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sale Price Currency</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                      value={String(field.value)}
+                      disabled={currenciesLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencies?.map((currency) => (
+                          <SelectItem key={currency.id} value={String(currency.id)}>
+                            {currency.code} - {currency.name} {currency.symbol && `(${currency.symbol})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

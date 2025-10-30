@@ -127,7 +127,7 @@ export class ItemsService {
   }
 
   async create(createItemDto: CreateItemDto, companyId: string, userId: string) {
-    const { sku, name, category, unitOfMeasure, description, reorderThreshold } = createItemDto;
+    const { sku, name, category, unitOfMeasure, description, purchasePrice, purchasePriceCurrencyId, salePrice, salePriceCurrencyId, reorderThreshold } = createItemDto;
 
     // Check for duplicate SKU
     const existingItem = await this.prisma.item.findFirst({
@@ -148,6 +148,10 @@ export class ItemsService {
         category,
         unitOfMeasure,
         description,
+        purchasePrice,
+        purchasePriceCurrencyId,
+        salePrice,
+        salePriceCurrencyId,
         reorderThreshold,
         companyId,
       },
