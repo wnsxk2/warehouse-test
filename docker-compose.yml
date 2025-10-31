@@ -13,7 +13,7 @@ services:
       - JWT_REFRESH_TOKEN_EXPIRATION=7d
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=${DATABASE_URL}
-      - FRONTEND_URL=${DOMAIN}:3000
+      - FRONTEND_URL=${FRONTEND_URL}
     restart: unless-stopped
     networks:
       - warehouse-network
@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
       args:
         # 👇 빌드 시점에 이 값을 전달합니다.
-        - NEXT_PUBLIC_API_URL=${DOMAIN}:3001/api
+        - NEXT_PUBLIC_API_URL=${BACKEND_URL}
     container_name: warehouse-frontend
     ports:
       - 3000:3000
